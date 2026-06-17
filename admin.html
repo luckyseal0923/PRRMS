@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
-<!-- 引入 Supabase JS SDK & SheetJS (Excel 匯出) -->
+<!-- 引入 Supabase JS SDK & ExcelJS (Excel 匯出) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
 <style>
 :root {
@@ -840,10 +840,10 @@ function downloadCSV() {
   link.click();
 }
 
-// 匯出成本歸戶報表 Excel
+// 匯出成本歸戶報表 Excel (ExcelJS 版，完美還原範本格式、直書與字體顏色)
 async function exportCostCenterExcel() {
   if (FILTERED_ORDERS.length === 0) { alert('沒有資料可匯出'); return; }
-  if (typeof XLSX === 'undefined') {
+  if (typeof ExcelJS === 'undefined') {
     alert('正在載入 Excel 匯出模組，請稍候再試...');
     return;
   }
@@ -859,7 +859,6 @@ async function exportCostCenterExcel() {
     activeProds = data || [];
   } catch (e) {
     console.error('取得商品列表失敗，將採用訂單中的品項進行匯出:', e);
-    // 降級方案：從訂單中提取所有品項
     const prodMap = {};
     FILTERED_ORDERS.forEach(o => {
       (o.items || []).forEach(i => {
@@ -897,62 +896,251 @@ async function exportCostCenterExcel() {
     return;
   }
 
-  // 3. 建立 XLSX Workbook
-  const wb = XLSX.utils.book_new();
+  // 3. 建立 ExcelJS Workbook
+  const workbook = new ExcelJS.Workbook();
+
+  // 輔助函式：取得欄位字母
+  function getColLetter(colIndex) {
+    let temp, letter = '';
+    while (colIndex > 0) {
+      temp = (colIndex - 1) % 26;
+      letter = String.fromCharCode(65 + temp) + letter;
+      colIndex = (colIndex - temp - 1) / 26;
+    }
+    return letter;
+  }
+
+  // 定義標準灰色框線
+  const thinBorder = {
+    top: { style: 'thin', color: { argb: 'FFC0C0C0' } },
+    left: { style: 'thin', color: { argb: 'FFC0C0C0' } },
+    bottom: { style: 'thin', color: { argb: 'FFC0C0C0' } },
+    right: { style: 'thin', color: { argb: 'FFC0C0C0' } }
+  };
 
   sheetNames.forEach(sheetName => {
     const orders = groups[sheetName];
     const [minguoYear, monthStr] = sheetName.split('.');
+    const worksheet = workbook.addWorksheet(sheetName);
+
+    // 顯示網格線
+    worksheet.views = [{ showGridLines: true }];
+
+    // 總欄數 = 5 個基礎欄位 + 商品數量 + 1 個總計欄位
+    const totalCols = 5 + activeProds.length + 1;
+    const totalColLetter = getColLetter(totalCols);
+
+    // 設定行高與列寬 (完全比照範本的行高與列寬配置)
+    worksheet.getRow(1).height = 28.5;
+    worksheet.getRow(2).height = 198.75;
+    worksheet.getRow(3).height = 18.0;
+
+    worksheet.getColumn('A').width = 9.25;
+    worksheet.getColumn('B').width = 11.25;
+    worksheet.getColumn('C').width = 7.38;
+    worksheet.getColumn('D').width = 7.25;
+    worksheet.getColumn('E').width = 47.38;
+    for (let c = 6; c <= 5 + activeProds.length; c++) {
+      worksheet.getColumn(c).width = 5.5; // 直書商品欄位為窄欄
+    }
+    worksheet.getColumn(totalCols).width = 12.75; // 總計欄位稍微寬一些
+
+    // Row 1: 大標題列
+    worksheet.mergeCells(`A1:${totalColLetter}1`);
+    const titleCell = worksheet.getCell('A1');
+    titleCell.value = `${minguoYear}年${parseInt(monthStr)}月公關品成本歸戶`;
+    titleCell.font = { name: '微軟正黑體', size: 22, bold: true };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    // Row 2-3: 基礎欄位與合併儲存格
+    worksheet.mergeCells('A2:A3');
+    worksheet.getCell('A2').value = '單位代號';
+    worksheet.mergeCells('B2:B3');
+    worksheet.getCell('B2').value = '申請單位';
+    worksheet.mergeCells('C2:C3');
+    worksheet.getCell('C2').value = '姓名';
+    worksheet.mergeCells('D2:D3');
+    worksheet.getCell('D2').value = '分機';
     
-    // 建立二維陣列資料
-    const aoa = [];
-    
-    // 第一列：標題
-    const titleRow = [`${minguoYear}年${parseInt(monthStr)}月公關品成本歸戶`];
-    aoa.push(titleRow);
-    
-    // 第二列：欄位標頭
-    const headers = ['單位代號', '申請單位', '姓名', '分機/工號', '領取事由'];
-    activeProds.forEach(p => {
-      headers.push(p.item_name);
+    worksheet.getCell('E2').value = '領取事由';
+    worksheet.getCell('E3').value = '單價';
+
+    // 商品與價格標頭直書填寫
+    activeProds.forEach((p, idx) => {
+      const colIndex = 6 + idx;
+      const colLetter = getColLetter(colIndex);
+      
+      // 商品名稱 (直書垂直排列，textRotation 為 vertical)
+      const nameCell = worksheet.getCell(`${colLetter}2`);
+      nameCell.value = p.item_name;
+      nameCell.alignment = { vertical: 'top', horizontal: 'center', textRotation: 'vertical' };
+      nameCell.font = { name: '微軟正黑體', size: 11, bold: false };
+
+      // 單價列 (套用與範本完全相同的黃/橘背景色)
+      const priceCell = worksheet.getCell(`${colLetter}3`);
+      priceCell.value = Number(p.price);
+      priceCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      priceCell.font = { name: '微軟正黑體', size: 12, bold: true };
+      priceCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFFDE9D9' }
+      };
     });
-    aoa.push(headers);
-    
-    // 第三列：單價列
-    const priceRow = ['', '', '', '', '單價'];
-    activeProds.forEach(p => {
-      priceRow.push(Number(p.price));
-    });
-    aoa.push(priceRow);
-    
-    // 第四列起：各筆訂單資料
+
+    // 右側總計/金額標頭 (不合併)
+    worksheet.getCell(`${totalColLetter}2`).value = '總計';
+    worksheet.getCell(`${totalColLetter}2`).alignment = { vertical: 'center', horizontal: 'center', textRotation: 'vertical' };
+    worksheet.getCell(`${totalColLetter}2`).font = { name: '微軟正黑體', size: 12, bold: false };
+
+    worksheet.getCell(`${totalColLetter}3`).value = '金額';
+    worksheet.getCell(`${totalColLetter}3`).alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getCell(`${totalColLetter}3`).font = { name: '微軟正黑體', size: 12, bold: true };
+    worksheet.getCell(`${totalColLetter}3`).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFDE9D9' }
+    };
+
+    // 填寫各筆申請資料
+    let currentRow = 4;
     orders.forEach(o => {
-      const row = [
-        o.cost_center || '',
-        o.department || '',
-        o.user || '',
-        o.phone || o.staff_id || '', // 分機或工號
-        o.reason || ''
-      ];
+      worksheet.getRow(currentRow).height = 18.75;
+
+      worksheet.getCell(`A${currentRow}`).value = o.cost_center || '';
+      worksheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
       
-      activeProds.forEach(p => {
+      worksheet.getCell(`B${currentRow}`).value = o.department || '';
+      worksheet.getCell(`B${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
+      
+      worksheet.getCell(`C${currentRow}`).value = o.user || '';
+      worksheet.getCell(`C${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
+      
+      worksheet.getCell(`D${currentRow}`).value = o.phone || o.staff_id || '';
+      worksheet.getCell(`D${currentRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
+      
+      worksheet.getCell(`E${currentRow}`).value = o.reason || '';
+      worksheet.getCell(`E${currentRow}`).alignment = { horizontal: 'left', vertical: 'middle' };
+
+      // 填寫對應商品之申請數量
+      activeProds.forEach((p, idx) => {
+        const colLetter = getColLetter(6 + idx);
         const item = (o.items || []).find(it => it.item_id === p.item_id);
-        row.push(item && item.qty > 0 ? item.qty : ''); // 若數量為 0 或未點，呈現空白
+        const qtyVal = item && item.qty > 0 ? Number(item.qty) : '';
+        const qtyCell = worksheet.getCell(`${colLetter}${currentRow}`);
+        qtyCell.value = qtyVal;
+        qtyCell.alignment = { horizontal: 'center', vertical: 'middle' };
       });
-      
-      aoa.push(row);
+
+      // 總計公式 (與範本相同：F3*F4+G3*G4...，並使用紅色粗體字呈現)
+      const formulaParts = [];
+      activeProds.forEach((p, idx) => {
+        const colLetter = getColLetter(6 + idx);
+        formulaParts.push(`$${colLetter}$3*${colLetter}${currentRow}`);
+      });
+      const totalCell = worksheet.getCell(`${totalColLetter}${currentRow}`);
+      totalCell.value = { formula: formulaParts.join('+') };
+      totalCell.alignment = { horizontal: 'right', vertical: 'middle' };
+      totalCell.font = { name: '微軟正黑體', size: 14, bold: true, color: { argb: 'FFFF0000' } };
+
+      currentRow++;
     });
+
+    // 底部總計列 (Row 25)
+    const totalRowIndex = currentRow;
+    worksheet.getRow(totalRowIndex).height = 21.75;
     
-    // 轉換為 sheet
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    
-    // 將 sheet 加入 workbook
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    // A25:E25 總計
+    worksheet.mergeCells(`A${totalRowIndex}:E${totalRowIndex}`);
+    const sumLabelCell = worksheet.getCell(`A${totalRowIndex}`);
+    sumLabelCell.value = '總計';
+    sumLabelCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    sumLabelCell.font = { name: '微軟正黑體', size: 14, bold: false };
+
+    // F25:AJ25 總計值
+    worksheet.mergeCells(`F${totalRowIndex}:${totalColLetter}${totalRowIndex}`);
+    const sumValCell = worksheet.getCell(`F${totalRowIndex}`);
+    sumValCell.value = { formula: `SUM(${totalColLetter}4:${totalColLetter}${totalRowIndex - 1})` };
+    sumValCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    sumValCell.font = { name: '微軟正黑體', size: 14, bold: true };
+
+    // 簽核主管簽章欄位 (Row 26-27)
+    const sigRow1 = totalRowIndex + 1;
+    const sigRow2 = totalRowIndex + 2;
+    worksheet.getRow(sigRow1).height = 15.75;
+    worksheet.getRow(sigRow2).height = 15.75;
+
+    // A26:D27 承辦人簽章
+    worksheet.mergeCells(`A${sigRow1}:D${sigRow2}`);
+    const sig1Cell = worksheet.getCell(`A${sigRow1}`);
+    sig1Cell.value = '承辦人：吳筱涵';
+    sig1Cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    sig1Cell.font = { name: '微軟正黑體', size: 14, bold: true };
+
+    // E26:E27 單位主管
+    worksheet.mergeCells(`E${sigRow1}:E${sigRow2}`);
+    const sig2Cell = worksheet.getCell(`E${sigRow1}`);
+    sig2Cell.value = '單位主管：';
+    sig2Cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    sig2Cell.font = { name: '微軟正黑體', size: 14, bold: true };
+
+    // F26:AJ27 簽核留白
+    worksheet.mergeCells(`F${sigRow1}:${totalColLetter}${sigRow2}`);
+    const sig3Cell = worksheet.getCell(`F${sigRow1}`);
+    sig3Cell.value = '';
+
+    // 通用儲存格格式設定 (框線、字體)
+    for (let r = 2; r <= sigRow2; r++) {
+      const row = worksheet.getRow(r);
+      for (let c = 1; c <= totalCols; c++) {
+        const cell = row.getCell(c);
+        // 設定框線
+        cell.border = thinBorder;
+        // 如果沒有設定特定的字體，設定預設微軟正黑體
+        if (!cell.font) {
+          cell.font = { name: '微軟正黑體', size: 11 };
+        }
+      }
+    }
+
+    // 調整標頭列與基礎列的儲存格對齊方式與樣式
+    worksheet.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getCell('B2').alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getCell('C2').alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getCell('D2').alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getCell('E2').alignment = { horizontal: 'center', vertical: 'middle' };
+    worksheet.getCell('E3').alignment = { horizontal: 'center', vertical: 'middle' };
+
+    worksheet.getCell('A2').font = { name: '微軟正黑體', size: 11, bold: true };
+    worksheet.getCell('B2').font = { name: '微軟正黑體', size: 11, bold: true };
+    worksheet.getCell('C2').font = { name: '微軟正黑體', size: 11, bold: true };
+    worksheet.getCell('D2').font = { name: '微軟正黑體', size: 11, bold: true };
+    worksheet.getCell('E2').font = { name: '微軟正黑體', size: 11, bold: true };
+    worksheet.getCell('E3').font = { name: '微軟正黑體', size: 12, bold: true };
+    worksheet.getCell('E3').fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFDE9D9' }
+    };
+
+    // 總計列背景色填滿 (A25:AJ25)
+    for (let c = 1; c <= totalCols; c++) {
+      const totalCell = worksheet.getRow(totalRowIndex).getCell(c);
+      totalCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE6F2FF' } // 淺藍/灰色
+      };
+    }
   });
 
-  // 4. 存檔匯出
-  const fileName = `公關品成本歸戶報表_${new Date().toISOString().slice(0, 10)}.xlsx`;
-  XLSX.writeFile(wb, fileName);
+  // 4. 存檔與下載
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `公關品成本歸戶報表_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  link.click();
 }
 
 // =========================================================================
