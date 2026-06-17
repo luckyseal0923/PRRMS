@@ -3,119 +3,355 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>公關品後臺管理系統</title>
+<title>公關品資源管理系統 (PRRMS) - 後台管理</title>
+<!-- 引入 Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<!-- 引入 Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
-:root { --primary: #10B981; --primary-dark: #059669; --bg: #F8FAFC; --text: #334155; --border: #E2E8F0; --danger: #EF4444; }
-body,html{margin:0;height:100%;font-family:"PingFang TC",sans-serif;background:var(--bg);color:var(--text)}
-.hidden{display:none!important}
-.sidebar{width:260px;background:#fff;height:100vh;position:fixed;padding:24px;border-right:1px solid var(--border);box-sizing:border-box;z-index:100}
-.main-content{margin-left:260px;padding:30px}
-@media (max-width: 900px) { .sidebar{width:70px;padding:15px 5px;text-align:center} .sidebar h2,.sidebar .nav-text{display:none} .main-content{margin-left:70px;padding:15px} }
-.nav-item{padding:14px 18px;border-radius:10px;margin-bottom:8px;cursor:pointer;color:#64748B;display:flex;align-items:center;gap:12px;transition:0.2s}
-.nav-item.active{background:var(--primary);color:#fff;font-weight:bold}
-.panel{background:#fff;border-radius:12px;padding:24px;border:1px solid var(--border);margin-bottom:24px;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
-h1{font-size:22px;border-left:5px solid var(--primary);padding-left:14px;margin-bottom:24px;color:#0F172A}
-table{width:100%;border-collapse:collapse;min-width:620px;table-layout:fixed}
-  /* ✅【把這段貼在這裡】 */
-  th, td{
-    word-break: break-word;
-    white-space: normal;
-  }
-th{text-align:left;padding:12px;background:#F8FAFC;border-bottom:2px solid var(--border);font-size:13px}
-td{padding:16px 12px;border-bottom:1px solid var(--border);font-size:14px}
-.table-wrapper{overflow-x:auto}
-.btn{padding:10px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
-.btn-primary{background:var(--primary);color:#fff}
-.btn-success{background:#10B981;color:#fff}
-.btn-outline{background:#fff;border:1px solid var(--border);color:var(--text)}
-.status-pill{padding:4px 10px;border-radius:6px;font-size:12px;font-weight:bold}
-.status-preparing{background:#DBEAFE;color:#1E40AF}
-.status-submitted{background:#FEF3C7;color:#92400E}
-.status-ready{background:#D1FAE5;color:#065F46}
-.status-exception{background:#FEE2E2;color:#991B1B}
-.status-end{background:#E5E7EB;color:#374151}
-input,select{padding:12px;border:1px solid var(--border);border-radius:8px;outline:none;box-sizing:border-box;font-size:14px}
-.modal{position:fixed;inset:0;background:rgba(15,23,42,0.5);display:none;align-items:center;justify-content:center;z-index:5000;padding:15px}
-.modal.show{display:flex}
-.modal-body{background:#fff;padding:30px;border-radius:16px;width:100%;max-width:550px;max-height:90vh;overflow-y:auto}
-.info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px dashed #E2E8F0}
-.info-label{color:#64748B;font-size:14px} .info-value{font-weight:600;font-size:14px}
-  /* Sidebar 快速連結：緊湊版 */
-.quick-link{
-  width:100%;
-  justify-content:flex-start;
-  padding:8px 14px;        /* 原本 14px 24px → 縮 */
-  font-size:14px;          /* 原本 17px */
-  border-radius:10px;
-  margin-bottom:6px;
+:root {
+  --primary: #10B981;
+  --primary-dark: #059669;
+  --bg: #F8FAFC;
+  --text: #334155;
+  --text-muted: #64748B;
+  --border: #E2E8F0;
+  --danger: #EF4444;
+}
+
+body, html {
+  margin: 0;
+  height: 100%;
+  font-family: 'Inter', 'Noto Sans TC', "PingFang TC", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.hidden { display: none !important; }
+
+.sidebar {
+  width: 260px;
+  background: #fff;
+  height: 100vh;
+  position: fixed;
+  padding: 24px;
+  border-right: 1px solid var(--border);
+  box-sizing: border-box;
+  z-index: 100;
+}
+
+.main-content {
+  margin-left: 260px;
+  padding: 30px;
+}
+
+@media (max-width: 900px) {
+  .sidebar { width: 70px; padding: 15px 5px; text-align: center; }
+  .sidebar h2, .sidebar .nav-text, .sidebar .quick-link-section { display: none !important; }
+  .main-content { margin-left: 70px; padding: 15px; }
+}
+
+.nav-item {
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  color: #64748B;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: 0.2s;
+  font-weight: 500;
+}
+
+.nav-item.active {
+  background: var(--primary);
+  color: #fff;
+  font-weight: bold;
+}
+
+.panel {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+h1 {
+  font-size: 22px;
+  border-left: 5px solid var(--primary);
+  padding-left: 14px;
+  margin-bottom: 24px;
+  color: #0F172A;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 620px;
+  table-layout: fixed;
+}
+
+th, td {
+  word-break: break-word;
+  white-space: normal;
+}
+
+th {
+  text-align: left;
+  padding: 12px;
+  background: #F8FAFC;
+  border-bottom: 2px solid var(--border);
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+td {
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.table-wrapper { overflow-x: auto; }
+
+.btn {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-success { background: #10B981; color: #fff; }
+.btn-success:hover { background: #059669; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #dc2626; }
+.btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text); }
+.btn-outline:hover { background: #f8fafc; }
+
+.status-pill {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.status-preparing { background: #DBEAFE; color: #1E40AF; }
+.status-submitted { background: #FEF3C7; color: #92400E; }
+.status-ready { background: #D1FAE5; color: #065F46; }
+.status-exception { background: #FEE2E2; color: #991B1B; }
+.status-end { background: #E5E7EB; color: #374151; }
+
+input, select {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+input:focus, select:focus {
+  border-color: var(--primary);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 5000;
+  padding: 15px;
+  backdrop-filter: blur(5px);
+}
+
+.modal.show { display: flex; }
+
+.modal-body {
+  background: #fff;
+  padding: 30px;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 550px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px dashed #E2E8F0;
+}
+
+.info-label { color: var(--text-muted); font-size: 14px; }
+.info-value { font-weight: 600; font-size: 14px; }
+
+.quick-link {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 8px 14px;
+  font-size: 14px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+}
+
+/* Setup Assistant Overlay */
+.setup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 18, 30, 0.7);
+  backdrop-filter: blur(10px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.setup-card {
+  background: #fff;
+  padding: 36px;
+  border-radius: 24px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.setup-card h2 {
+  margin-top: 0;
+  color: #1a2a3a;
+  font-size: 22px;
+  text-align: center;
+}
+
+.setup-card p {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.setup-input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+.setup-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.setup-btn:hover {
+  background: var(--primary-dark);
 }
 </style>
 </head>
 <body>
-  <div id="adminView">
+
+<!-- Supabase 連線設定小幫手 (僅在未填憑證時顯示) -->
+<div id="setupAssistant" class="setup-overlay" style="display:none;">
+  <div class="setup-card">
+    <h2>🔑 串接您的 Supabase 與 n8n</h2>
+    <p>後台管理系統需要設定 Supabase 與信件發送 Webhook 憑證：</p>
+    <label style="font-size: 13px; font-weight: 600;">Supabase Project URL</label>
+    <input type="text" id="setupUrl" class="setup-input" placeholder="https://xxxx.supabase.co" />
+    <label style="font-size: 13px; font-weight: 600;">Supabase Anon Key</label>
+    <input type="text" id="setupKey" class="setup-input" placeholder="Supabase Anon Key" />
+    <label style="font-size: 13px; font-weight: 600;">n8n 信件通知 Webhook URL (選填)</label>
+    <input type="text" id="setupMailWebhook" class="setup-input" placeholder="https://xxxx.zeabur.app/webhook/update-order" />
+    <button type="button" class="setup-btn" onclick="saveCredentials()">儲存設定</button>
+  </div>
+</div>
+
+<div id="adminView">
   <div class="sidebar">
-    <h2 style="color:var(--primary-dark);margin-bottom:30px">公關品後臺管理</h2>
+    <h2 style="color:var(--primary-dark); margin-bottom:30px; font-size: 20px;">PRRMS 資源管理</h2>
     <div class="nav-item active" id="nav-orders" onclick="switchTab('orders')">📋 <span class="nav-text">訂單管理系統</span></div>
     <div class="nav-item" id="nav-inventory" onclick="switchTab('inventory')">⚖️ <span class="nav-text">庫存盤點</span></div>
     <div class="nav-item" id="nav-listing" onclick="switchTab('listing')">🚀 <span class="nav-text">商品管理</span></div>
     <div class="nav-item" id="nav-accounts" onclick="switchTab('accounts')">👥 <span class="nav-text">帳號管理</span></div>
+    
     <!-- Sidebar 底部快速連結 -->
-<div style="margin-top:40px;border-top:1px solid #e5e7eb;padding-top:20px">
-
-  <div style="font-size:13px;color:#64748B;margin-bottom:10px">
-    🔗 公關品快速連結
-  </div>
-
-<a href="https://promotional-items-booking.zeabur.app/"
-   target="_blank"
-   class="btn btn-outline quick-link">
-  📝 訂單申請
-</a>
-
-<a href="https://promotional-items-booking.zeabur.app/Items-status.html"
-   target="_blank"
-   class="btn btn-outline quick-link">
-  📊 狀態看板
-</a>
-
-  <div style="margin-top:16px">
-    <button class="btn btn-outline" style="width:100%">安全登出</button>
-  </div>
-
-</div>
+    <div class="quick-link-section" style="margin-top:40px; border-top:1px solid #e5e7eb; padding-top:20px">
+      <div style="font-size:13px; color:#64748B; margin-bottom:10px">🔗 快速連結</div>
+      <a href="index.html" class="btn btn-outline quick-link">📝 訂單申請</a>
+      <a href="Items-status.html" class="btn btn-outline quick-link">📊 狀態看板</a>
+      <div style="margin-top:16px">
+        <button class="btn btn-outline" style="width:100%" onclick="alert('已登出')">安全登出</button>
+      </div>
+    </div>
   </div>
 
   <div class="main-content">
     <!-- 訂單 -->
     <div id="tab-orders">
       <h1>訂單管理系統</h1>
-      <div id="orderError" class="hidden" style="padding:14px;background:#FEE2E2;color:#991B1B;border-radius:10px;margin-bottom:16px">⚠️ 載入失敗</div>
+      <div id="orderError" class="hidden" style="padding:14px; background:#FEE2E2; color:#991B1B; border-radius:10px; margin-bottom:16px">⚠️ 載入失敗，請檢查資料庫連線</div>
       <div class="panel">
-        <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+        <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; align-items:center">
           <input type="date" id="dateFrom" onchange="filterOrders()"> 至 <input type="date" id="dateTo" onchange="filterOrders()">
           <select id="statusFilter" onchange="filterOrders()" style="min-width:120px">
             <option value="">全部狀態</option>
-            <option value="Submitted">申請提出</option>
+            <option value="SUBMITTED">申請提出</option>
             <option value="PREPARING">商品準備中</option>
-            <option value="ready">通知領取</option>
+            <option value="READY">通知領取</option>
             <option value="EXCEPTION">異常通知</option>
-            <option value="End">案件結案</option>
+            <option value="END">案件結案</option>
           </select>
-          <input type="text" id="searchKeyword" placeholder="搜尋單號/申請人" style="width:150px"oninput="filterOrders()">
+          <input type="text" id="searchKeyword" placeholder="搜尋單號/申請人" style="width:150px" oninput="filterOrders()">
           <button class="btn btn-primary" onclick="filterOrders()">🔍 篩選</button>
           <button class="btn btn-outline" onclick="resetFilter()">重置</button>
           <button class="btn btn-success" onclick="downloadCSV()">📥 下載報表</button>
         </div>
         <div class="table-wrapper">
           <table>
-            <thead><tr>    <th style="cursor:pointer" onclick="toggleSortByDate()">
-      日期 / 單號<span id="dateSortIcon">⬇️</span></th><th>申請人</th><th>單位</th><th>狀態</th><th>操作</th></tr></thead>
-            <tbody id="orderTable"><tr><td colspan="5" style="text-align:center;padding:30px">載入中...</td></tr></tbody>
+            <thead>
+              <tr>
+                <th style="cursor:pointer" onclick="toggleSortByDate()">日期 / 單號 <span id="dateSortIcon">⬇️</span></th>
+                <th>申請人</th>
+                <th>單位</th>
+                <th>狀態</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="orderTable">
+              <tr><td colspan="5" style="text-align:center; padding:30px">載入中...</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
     </div>
-     <!-- 庫存 -->
+
+    <!-- 庫存 -->
     <div id="tab-inventory" class="hidden">
       <h1>庫存盤點</h1>
       <div class="panel">載入中...</div>
@@ -130,56 +366,163 @@ input,select{padding:12px;border:1px solid var(--border);border-radius:8px;outli
     <!-- 帳號 -->
     <div id="tab-accounts" class="hidden">
       <h1>帳號管理</h1>
-      <div class="panel">（功能開發中）</div>
+      <div class="panel">（功能開發中，本機版可規劃 Supabase Auth 整合）</div>
     </div>
   </div>
 </div>
 
 <!-- Modal -->
-<div id="orderModal" class="modal"><div class="modal-body"><h3 class="modal-title">📋 訂單詳細資訊</h3><div id="orderDetail"></div><button class="btn btn-primary" style="width:100%;margin-top:20px" onclick="document.getElementById('orderModal').classList.remove('show')">關閉</button></div></div>
+<div id="orderModal" class="modal">
+  <div class="modal-body">
+    <h3 class="modal-title">📋 訂單詳細資訊</h3>
+    <div id="orderDetail"></div>
+    <button class="btn btn-primary" style="width:100%; margin-top:20px" onclick="document.getElementById('orderModal').classList.remove('show')">關閉</button>
+  </div>
+</div>
 
 <script>
-let SORT_DATE_DESC = true; // 預設：由新到舊
-const API_ORDERS = 'https://chihwei-n8n.zeabur.app/webhook/orders';
-const API_INVENTORY_LIST = 'https://chihwei-n8n.zeabur.app/webhook/inventory-list';
-const API_INVENTORY_UPDATE = 'https://chihwei-n8n.zeabur.app/webhook/inventory-update';
-const API_PRODUCT_SAVE = 'https://chihwei-n8n.zeabur.app/webhook/product-save';
-const API_PRODUCT_UPLOAD = 'https://chihwei-n8n.zeabur.app/webhook/product-upload-image';
-const API_PRODUCT_DELETE = 'https://chihwei-n8n.zeabur.app/webhook/product-delete';
+// =========================================================================
+// 1. Supabase & Webhook 憑證初始化
+// =========================================================================
+const DEFAULT_SUPABASE_URL = 'https://awqrpzgkndysizvwqfmy.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_6Km_NaLMwawXQD9lMH7aMw_AsQmjGU0';
+const DEFAULT_MAIL_WEBHOOK = 'https://chihwei-n8n.zeabur.app/webhook/update-order';
 
+let supabaseUrl = localStorage.getItem('supabaseUrl') || DEFAULT_SUPABASE_URL;
+let supabaseKey = localStorage.getItem('supabaseKey') || DEFAULT_SUPABASE_ANON_KEY;
+let mailWebhookUrl = localStorage.getItem('n8nEmailWebhook') || DEFAULT_MAIL_WEBHOOK;
+
+// 檢查是否需要顯示設定小幫手
+if (supabaseUrl === 'YOUR_SUPABASE_URL' || supabaseKey === 'YOUR_SUPABASE_ANON_KEY' || !supabaseUrl || !supabaseKey) {
+    document.getElementById('setupAssistant').style.display = 'flex';
+}
+
+function saveCredentials() {
+    const url = document.getElementById('setupUrl').value.trim();
+    const key = document.getElementById('setupKey').value.trim();
+    const mail = document.getElementById('setupMailWebhook').value.trim();
+    if (!url || !key) {
+        alert('請填寫 Supabase 欄位');
+        return;
+    }
+    localStorage.setItem('supabaseUrl', url);
+    localStorage.setItem('supabaseKey', key);
+    localStorage.setItem('n8nEmailWebhook', mail || DEFAULT_MAIL_WEBHOOK);
+    window.location.reload();
+}
+
+let supabaseClient = null;
+if (supabaseUrl && supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseKey && supabaseKey !== 'YOUR_SUPABASE_ANON_KEY') {
+    supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+}
+
+// =========================================================================
+// 2. 後台業務處理
+// =========================================================================
+let SORT_DATE_DESC = true; // 預設：由新到舊
 let ALL_ORDERS = [], FILTERED_ORDERS = [], ALL_PRODUCTS = [];
 
-const STATUS_MAP = {'Submitted':'申請提出','PREPARING':'商品準備中','preparing':'商品準備中','ready':'通知領取','EXCEPTION':'異常通知','End':'案件結案','done':'案件結案','closed':'案件結案'};
-const STATUS_CLASS = {'Submitted':'status-submitted','PREPARING':'status-preparing','preparing':'status-preparing','ready':'status-ready','EXCEPTION':'status-exception','End':'status-end','done':'status-end','closed':'status-end'};
-  function getStatusText(s){return STATUS_MAP[s]||s||'未知';}
-function getStatusClass(s){return STATUS_CLASS[s]||'status-preparing';}
-function formatDate(d){if(!d)return'-';const n=new Date(d);return isNaN(n)?d:n.toLocaleDateString('zh-TW');}
-function formatDateTime(d){if(!d)return'-';const n=new Date(d);return isNaN(n)?d:n.toLocaleString('zh-TW');}
+const STATUS_MAP = {
+  'SUBMITTED': '申請提出',
+  'Submitted': '申請提出',
+  'PREPARING': '商品準備中',
+  'preparing': '商品準備中',
+  'READY': '通知領取',
+  'ready': '通知領取',
+  'EXCEPTION': '異常通知',
+  'END': '案件結案',
+  'End': '案件結案',
+  'done': '案件結案',
+  'closed': '案件結案'
+};
 
-function switchTab(tab){
-  ['orders','inventory','listing','accounts'].forEach(t=>{
-    document.getElementById('tab-'+t).classList.add('hidden');
-    document.getElementById('nav-'+t).classList.remove('active');
+const STATUS_CLASS = {
+  'SUBMITTED': 'status-submitted',
+  'Submitted': 'status-submitted',
+  'PREPARING': 'status-preparing',
+  'preparing': 'status-preparing',
+  'READY': 'status-ready',
+  'ready': 'status-ready',
+  'EXCEPTION': 'status-exception',
+  'END': 'status-end',
+  'End': 'status-end',
+  'done': 'status-end',
+  'closed': 'status-end'
+};
+
+function getStatusText(s) { return STATUS_MAP[s] || s || '未知'; }
+function getStatusClass(s) { return STATUS_CLASS[s] || 'status-preparing'; }
+
+function formatDate(d) {
+  if (!d) return '-';
+  const n = new Date(d);
+  return isNaN(n) ? d : n.toLocaleDateString('zh-TW');
+}
+
+function formatDateTime(d) {
+  if (!d) return '-';
+  const n = new Date(d);
+  return isNaN(n) ? d : n.toLocaleString('zh-TW');
+}
+
+function switchTab(tab) {
+  ['orders', 'inventory', 'listing', 'accounts'].forEach(t => {
+    document.getElementById('tab-' + t).classList.add('hidden');
+    document.getElementById('nav-' + t).classList.remove('active');
   });
-  document.getElementById('tab-'+tab).classList.remove('hidden');
-  document.getElementById('nav-'+tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.remove('hidden');
+  document.getElementById('nav-' + tab).classList.add('active');
   
-  if(tab==='orders' && ALL_ORDERS.length===0) loadOrders();
-  if(tab==='inventory') loadInventory();
-  if(tab==='listing') loadListing();
+  if (supabaseClient) {
+    if (tab === 'orders' && ALL_ORDERS.length === 0) loadOrders();
+    if (tab === 'inventory') loadInventory();
+    if (tab === 'listing') loadListing();
+  }
 }
 
-/* 訂單 */
-async function loadOrders(){
-  try{
-    const res=await fetch(API_ORDERS);
-    const data=await res.json();
-    ALL_ORDERS=[...(data.orders?.active||[]),...(data.orders?.archived||[])];
-    FILTERED_ORDERS=[...ALL_ORDERS];
+// 載入訂單列表 (整合 Adapter 模式)
+async function loadOrders() {
+  if (!supabaseClient) return;
+  try {
+    const { data, error } = await supabaseClient
+      .from('applications')
+      .select('*, application_items(*)')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // 將 Supabase 資料格式，轉換為舊系統的前端屬性名稱以相容後續邏輯
+    ALL_ORDERS = (data || []).map(o => ({
+      task_id: o.task_id,
+      date: o.created_at,
+      user: o.applicant_name,
+      staff_id: o.staff_id,
+      phone: o.applicant_phone,
+      email: o.applicant_email,
+      department: o.department,
+      cost_center: o.cost_center,
+      reason: o.reason,
+      status: o.status,
+      items: (o.application_items || []).map(i => ({
+        item_name: i.item_name,
+        qty: i.quantity,
+        subtotal: i.subtotal,
+        item_id: i.item_id,
+        unit_price: i.unit_price
+      })),
+      total: o.total_amount,
+      comment: o.review_comment || ''
+    }));
+    
+    FILTERED_ORDERS = [...ALL_ORDERS];
     renderOrders();
-  }catch(e){ console.error(e); document.getElementById('orderError').classList.remove('hidden'); }
+  } catch (e) {
+    console.error(e);
+    document.getElementById('orderError').classList.remove('hidden');
+  }
 }
-function filterOrders(){
+
+function filterOrders() {
   const df = document.getElementById('dateFrom').value;
   const dt = document.getElementById('dateTo').value;
   const sf = document.getElementById('statusFilter').value;
@@ -194,36 +537,18 @@ function filterOrders(){
     }
 
     // 狀態篩選
-    if (sf && o.status !== sf) return false;
+    if (sf && o.status.toUpperCase() !== sf.toUpperCase()) return false;
 
-// 關鍵字搜尋（單號 / 申請人）
-if (kw) {
-  const taskStr = String(o.task_id ?? '').toLowerCase();
-
-  // user 可能是 string / object / array / null
-  let userStr = '';
-  if (typeof o.user === 'string') {
-    userStr = o.user;
-  } else if (o.user && typeof o.user === 'object') {
-    // 嘗試常見欄位
-    userStr =
-      o.user.name ||
-      o.user.fullname ||
-      JSON.stringify(o.user);
-  }
-
-  userStr = String(userStr).toLowerCase();
-
-  const hitTask = taskStr.includes(kw);
-  const hitUser = userStr.includes(kw);
-
-  if (!hitTask && !hitUser) return false;
-}
-
+    // 關鍵字篩選
+    if (kw) {
+      const taskStr = String(o.task_id ?? '').toLowerCase();
+      const userStr = String(o.user ?? '').toLowerCase();
+      if (!taskStr.includes(kw) && !userStr.includes(kw)) return false;
+    }
     return true;
   });
 
-  // 套用目前排序方向（維持一致性）
+  // 排序
   FILTERED_ORDERS.sort((a, b) => {
     const da = new Date(a.date || 0).getTime();
     const db = new Date(b.date || 0).getTime();
@@ -232,32 +557,38 @@ if (kw) {
 
   renderOrders();
 }
-function resetFilter(){
-  document.getElementById('dateFrom').value='';document.getElementById('dateTo').value='';document.getElementById('statusFilter').value='';document.getElementById('searchKeyword').value='';
-  FILTERED_ORDERS=[...ALL_ORDERS]; renderOrders();
+
+function resetFilter() {
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value = '';
+  document.getElementById('statusFilter').value = '';
+  document.getElementById('searchKeyword').value = '';
+  FILTERED_ORDERS = [...ALL_ORDERS];
+  renderOrders();
 }
 
 function toggleSortByDate() {
   SORT_DATE_DESC = !SORT_DATE_DESC;
-
   FILTERED_ORDERS.sort((a, b) => {
     const da = new Date(a.date || 0).getTime();
     const db = new Date(b.date || 0).getTime();
     return SORT_DATE_DESC ? db - da : da - db;
   });
-
-  document.getElementById('dateSortIcon').textContent =
-    SORT_DATE_DESC ? '⬇️' : '⬆️';
-
+  document.getElementById('dateSortIcon').textContent = SORT_DATE_DESC ? '⬇️' : '⬆️';
   renderOrders();
 }
-function renderOrders(){
-  const tb=document.getElementById('orderTable');
-  if(FILTERED_ORDERS.length===0){ tb.innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px">無資料</td></tr>'; return; }
-  tb.innerHTML=FILTERED_ORDERS.map(o=>
+
+function renderOrders() {
+  const tb = document.getElementById('orderTable');
+  if (FILTERED_ORDERS.length === 0) {
+    tb.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px">無資料</td></tr>';
+    return;
+  }
+  tb.innerHTML = FILTERED_ORDERS.map(o =>
     `<tr>
-      <td><div style="font-weight:bold">${formatDate(o.date)}</div><div style="font-size:11px;color:#999">${o.task_id||'-'}</div></td>
-      <td>${o.user||'-'}</td><td>${o.department||'-'}</td>
+      <td><div style="font-weight:bold">${formatDate(o.date)}</div><div style="font-size:11px; color:#999">${o.task_id || '-'}</div></td>
+      <td>${o.user || '-'}</td>
+      <td>${o.department || '-'}</td>
       <td><span class="status-pill ${getStatusClass(o.status)}">${getStatusText(o.status)}</span></td>
       <td>
         <button class="btn btn-outline" onclick="showOrderDetail('${o.task_id}')">📋 查詢</button>
@@ -266,6 +597,7 @@ function renderOrders(){
     </tr>`
   ).join('');
 }
+
 function showOrderDetail(taskId) {
   const o = ALL_ORDERS.find(ord => ord.task_id === taskId);
   if (!o) {
@@ -286,104 +618,148 @@ function showOrderDetail(taskId) {
       <div class="info-row"><b>領取事由</b><span>${o.reason || '-'}</span></div>
     </div>
 
-<h4 style="margin-top:20px">📦 商品內容</h4>
-<div class="panel">
-  ${(o.items || []).map(i => {
-    const name =
-      i.item_name ||
-      i.name ||
-      i.n ||
-      '未命名商品';
+    <h4 style="margin-top:20px">📦 商品內容</h4>
+    <div class="panel">
+      ${(o.items || []).map(i => `<div>• ${i.item_name || '未命名商品'} × ${i.qty}</div>`).join('')}
+    </div>
 
-    const qty =
-      i.qty ??
-      i.q ??
-      i.quantity ??
-      i.count ??
-      1; // 最後保底給 1，避免顯示空白
-
-    return `<div>• ${name} × ${qty}</div>`;
-  }).join('')}
-</div>
-
-    ${
-      o.status === 'EXCEPTION' && o.comment
-        ? `<div class="panel" style="margin-top:15px;background:#FEE2E2;color:#991B1B">
-             ⚠️ <b>異常備註：</b>${o.comment}
-           </div>`
-        : ''
-    }
+    ${o.comment ? `
+      <div class="panel" style="margin-top:15px; background:#FEE2E2; color:#991B1B">
+        ⚠️ <b>異常備註說明：</b>${o.comment}
+      </div>` : ''}
   `;
 
   document.getElementById('orderModal').classList.add('show');
 }
 
-function showEditStatus(tid){
-  const o=ALL_ORDERS.find(x=>x.task_id===tid); if(!o)return;
-  let h=`<div style="margin-bottom:15px">目前狀態：<span class="status-pill ${getStatusClass(o.status)}">${getStatusText(o.status)}</span></div>`;
-h+=`<select id="newStatus" style="width:100%" onchange="toggleReason()">
-<option value="Submitted">申請提出</option>
-<option value="PREPARING">商品準備中</option>
-<option value="ready">通知領取</option>
-<option value="EXCEPTION">異常通知</option>
-<option value="End">案件結案</option>
-<option disabled>──────────</option>
-<option value="DELETE">🗑 刪除申請</option>
-</select>`;  h+=`<div id="reasonField" style="display:none;margin-top:10px"><textarea id="statusNote" style="width:100%" placeholder="輸入異常原因..."></textarea></div>`;
-  h+=`<button class="btn btn-success" style="width:100%;margin-top:15px" onclick="updateStatus('${tid}')">💾 儲存</button>`;
-  document.getElementById('orderDetail').innerHTML=h;
+function showEditStatus(tid) {
+  const o = ALL_ORDERS.find(x => x.task_id === tid);
+  if (!o) return;
+  let h = `<div style="margin-bottom:15px">目前狀態：<span class="status-pill ${getStatusClass(o.status)}">${getStatusText(o.status)}</span></div>`;
+  h += `<select id="newStatus" style="width:100%" onchange="toggleReason()">
+    <option value="SUBMITTED">申請提出</option>
+    <option value="PREPARING">商品準備中</option>
+    <option value="READY">通知領取</option>
+    <option value="EXCEPTION">異常通知</option>
+    <option value="END">案件結案</option>
+    <option disabled>──────────</option>
+    <option value="DELETE">🗑 刪除申請</option>
+  </select>`;
+  h += `<div id="reasonField" style="display:none; margin-top:10px"><textarea id="statusNote" style="width:100%; padding:10px; border-radius:8px;" placeholder="輸入異常原因...">${o.comment || ''}</textarea></div>`;
+  h += `<button class="btn btn-success" style="width:100%; margin-top:15px" onclick="updateStatus('${tid}')">💾 儲存</button>`;
+  
+  document.getElementById('orderDetail').innerHTML = h;
   document.getElementById('orderModal').classList.add('show');
-setTimeout(()=>{
-  const sel=document.getElementById('newStatus');
-  if([...sel.options].some(x=>x.value===o.status)){
-    sel.value=o.status;
-  }
-  toggleReason();
-},0);}
+  
+  setTimeout(() => {
+    const sel = document.getElementById('newStatus');
+    const statusVal = String(o.status).toUpperCase();
+    if ([...sel.options].some(x => x.value === statusVal)) {
+      sel.value = statusVal;
+    }
+    toggleReason();
+  }, 0);
+}
 
-function toggleReason(){
+function toggleReason() {
   const sel = document.getElementById('newStatus');
-  if(!sel) return;
-
+  if (!sel) return;
   const s = sel.value;
-
   const reason = document.getElementById('reasonField');
-  if(reason){
+  if (reason) {
     reason.style.display = (s === 'EXCEPTION') ? 'block' : 'none';
   }
 }
-  async function updateStatus(tid){
-  const s=document.getElementById('newStatus').value, n=document.getElementById('statusNote')?.value;
-  if(s === "DELETE"){
-  const ok = confirm("⚠️ 確定要刪除此申請嗎？\n\n刪除後資料將無法回復");
-  if(!ok) return;
 
-const res = await fetch('https://chihwei-n8n.zeabur.app/webhook/delete-order', {
-  method:'POST',
-  headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({task_id:tid})
-});
-
-if(!res.ok){
-  throw new Error("delete fail");
-}
-
-  alert("🗑 訂單已刪除");
-  document.getElementById('orderModal').classList.remove('show');
-  loadOrders();
-  return;
-}
-    if(s==='EXCEPTION' && !n){ alert('請填寫異常原因'); return; }
+// 更新訂單狀態與信件發送自動化 (解耦並對接信件發送 n8n Webhook)
+async function updateStatus(tid) {
+  if (!supabaseClient) return;
+  const s = document.getElementById('newStatus').value;
+  const n = document.getElementById('statusNote')?.value || '';
   
-  try{
-    await fetch('https://chihwei-n8n.zeabur.app/webhook/update-order', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({task_id:tid, status:s, comment:n, updated_at:new Date().toISOString()})
-    });
-    alert('✅ 更新成功'); document.getElementById('orderModal').classList.remove('show'); loadOrders();
-  }catch(e){ alert('更新失敗'); }
+  const saveBtn = event.target;
+  saveBtn.disabled = true;
+  saveBtn.textContent = '處理中...';
+
+  try {
+    if (s === "DELETE") {
+      const ok = confirm("⚠️ 確定要刪除此申請嗎？\n\n刪除後資料將無法回復");
+      if (!ok) return;
+
+      const { error } = await supabaseClient
+        .from('applications')
+        .delete()
+        .eq('task_id', tid);
+
+      if (error) throw error;
+      alert("🗑 訂單已刪除");
+      document.getElementById('orderModal').classList.remove('show');
+      loadOrders();
+      return;
+    }
+
+    if (s === 'EXCEPTION' && !n) {
+      alert('請填寫異常原因');
+      return;
+    }
+
+    // 1. 在 Supabase 中更新狀態與評論
+    const { error: dbError } = await supabaseClient
+      .from('applications')
+      .update({
+        status: s,
+        review_comment: n,
+        updated_at: new Date().toISOString()
+      })
+      .eq('task_id', tid);
+
+    if (dbError) throw dbError;
+
+    // 2. 判斷是否需要發信，觸發解耦後的信件 Webhook
+    if (s === 'READY' || s === 'EXCEPTION') {
+      const o = ALL_ORDERS.find(x => x.task_id === tid);
+      if (o) {
+        // 在前端把完整的明細與金額串接好，使後端 n8n Webhook 與資料庫完全解耦
+        const formattedItems = o.items.map((it, idx) => `${idx + 1}. ${it.item_name} x${it.qty} - $${it.subtotal}`).join('\n');
+        
+        const payload = {
+          status: s,
+          email: o.email,
+          user: o.user,
+          task_id: o.task_id,
+          item_list: formattedItems,
+          total: o.total,
+          item_count: o.items.length,
+          comment: n
+        };
+
+        try {
+          await fetch(mailWebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          console.log('📬 已成功發送 n8n 信件通知 Webhook');
+        } catch (webhookErr) {
+          console.error('發送 n8n Webhook 信件通知失敗:', webhookErr);
+        }
+      }
+    }
+
+    alert('✅ 更新成功');
+    document.getElementById('orderModal').classList.remove('show');
+    loadOrders();
+
+  } catch (e) {
+    alert('更新失敗：' + e.message);
+    console.error(e);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 儲存';
+  }
 }
 
+// 報表匯出 CSV
 function downloadCSV() {
   if (FILTERED_ORDERS.length === 0) { alert('沒有資料可下載'); return; }
   let csv = '\uFEFF日期,單號,申請人,單位,狀態,金額\n';
@@ -396,75 +772,111 @@ function downloadCSV() {
   link.download = '訂單報表_' + new Date().toISOString().slice(0, 10) + '.csv';
   link.click();
 }
-  /* 庫存與商品 */
-async function loadInventory(){
-  const p=document.querySelector('#tab-inventory .panel');
-  try{
-    const res=await fetch(API_INVENTORY_LIST);
-    const d=await res.json();
-    ALL_PRODUCTS=d.items || [];
+
+// =========================================================================
+// 3. 庫存與商品管理分頁
+// =========================================================================
+async function loadInventory() {
+  const p = document.querySelector('#tab-inventory .panel');
+  if (!supabaseClient) return;
+  try {
+    const { data, error } = await supabaseClient
+      .from('items_list')
+      .select('*')
+      .order('item_id');
+
+    if (error) throw error;
+    
+    // Adapt to local products format
+    ALL_PRODUCTS = (data || []).map(i => ({
+      item_id: i.item_id,
+      item_name: i.item_name,
+      stock: i.inventory,
+      unit_price: i.price,
+      image: i.image
+    }));
+
     if (ALL_PRODUCTS.length === 0) {
       p.innerHTML = '<div style="padding:20px; color:#666; text-align:center;">查無相關商品訊息</div>';
     } else {
       renderInventory(ALL_PRODUCTS);
     }
-  }catch(e){
-    p.innerHTML='載入失敗';
+  } catch (e) {
+    p.innerHTML = '載入庫存失敗：' + e.message;
   }
 }
 
 function renderInventory(items) {
   const panel = document.querySelector('#tab-inventory .panel');
-  let html = '<table style="width:100%"><thead><tr><th>圖</th><th>品名</th><th>庫存</th><th>操作</th></tr></thead><tbody>';
+  let html = '<table style="width:100%"><thead><tr><th>圖</th><th>品品</th><th>庫存</th><th>操作</th></tr></thead><tbody>';
   items.forEach(item => {
     const imgHtml = item.image 
-      ? `<img src="${item.image}" style="height:40px;cursor:pointer" onclick="showBig('${item.image}')" title="點擊放大">` 
-      : '<span style="color:#ccc;font-size:12px;">無圖片</span>';
+      ? `<img src="${item.image}" style="height:40px; cursor:pointer; object-fit:cover; border-radius:4px;" onclick="showBig('${item.image}')" title="點擊放大">` 
+      : '<span style="color:#ccc; font-size:12px;">無圖片</span>';
     html += `<tr>
-      <td style="width:80px;text-align:center;">${imgHtml}</td>
-      <td style="font-weight:bold;font-size:15px;">${item.item_name}</td>
-      <td style="font-size:16px;color:${item.stock < 10 ? 'red' : 'black'}">${item.stock}</td>
+      <td style="width:80px; text-align:center;">${imgHtml}</td>
+      <td style="font-weight:bold; font-size:15px;">${item.item_name}</td>
+      <td style="font-size:16px; color:${item.stock < 10 ? 'red' : 'black'}">${item.stock}</td>
       <td>
-        <div style="display:flex;gap:8px;align-items:center;">
-<input type="number" id="stock-${item.item_id}" value="${item.stock}" style="width:100px">
-<button class="btn btn-primary" onclick="updStock('${item.item_id}')">儲存</button>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="number" id="stock-${item.item_id}" value="${item.stock}" style="width:100px">
+          <button class="btn btn-primary" onclick="updStock('${item.item_id}')">儲存</button>
         </div>
       </td>
     </tr>`;
   });
-  if (!document.getElementById('imgModal')) {
-    const modalHtml = `<div id="imgModal" class="modal" onclick="this.style.display='none'"><img id="bigImage" style="max-width:90%;max-height:90%;margin:auto;display:block"></div>`;
+  if (!document.getElementById('bigImgModal')) {
+    const modalHtml = `<div id="bigImgModal" class="modal" onclick="this.style.display='none'"><img id="bigImage" style="max-width:90%; max-height:90%; margin:auto; display:block; border-radius:12px; background:#fff;"></div>`;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
   }
   panel.innerHTML = html + '</tbody></table>';
 }
 
-async function updStock(id){
-  const v=document.getElementById('stock-'+id).value;
-  try{
-    await fetch(API_INVENTORY_UPDATE, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({item_id:id, stock:v})});
-    alert('已更新');
-  }catch(e){ alert('失敗'); }
+async function updStock(id) {
+  if (!supabaseClient) return;
+  const v = document.getElementById('stock-' + id).value;
+  try {
+    const { error } = await supabaseClient
+      .from('items_list')
+      .update({ inventory: parseInt(v) || 0 })
+      .eq('item_id', id);
+
+    if (error) throw error;
+    alert('已更新庫存');
+    loadInventory();
+  } catch (e) {
+    alert('更新庫存失敗：' + e.message);
+  }
 }
-/* =========================
-   3. 商品管理 (Listing) - 修正版
-========================= */
+
+// 4. 商品管理 Tab (Listing)
 async function loadListing() {
   const p = document.querySelector('#tab-listing .panel');
-  
-  // 1. 先建立頂部操作列（新增按鈕），這部分不放在 try 裡面，確保永遠看得到
+  if (!supabaseClient) return;
+
   let topHtml = `
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-      <span style="color:#64748B; font-size:14px;">管理您的公關品清單與庫存</span>
+      <span style="color:#64748B; font-size:14px;">管理您的公關品清單與庫存（圖片直接儲存於 Supabase Storage）</span>
       <button class="btn btn-success" onclick="editProd()">➕ 新增商品</button>
     </div>
   `;
 
   try {
-    const res = await fetch(API_INVENTORY_LIST);
-    const d = await res.json();
-    ALL_PRODUCTS = d.items || [];
-    
+    const { data, error } = await supabaseClient
+      .from('items_list')
+      .select('*')
+      .order('item_id');
+
+    if (error) throw error;
+
+    ALL_PRODUCTS = (data || []).map(i => ({
+      item_id: i.item_id,
+      item_name: i.item_name,
+      stock: i.inventory,
+      unit_price: i.price,
+      image: i.image
+    }));
+
     let tableHtml = `
       <div class="table-wrapper">
         <table style="width:100%">
@@ -475,12 +887,12 @@ async function loadListing() {
     `;
 
     if (ALL_PRODUCTS.length === 0) {
-      tableHtml += '<tr><td colspan="6" style="text-align:center;padding:30px">尚無商品資料</td></tr>';
+      tableHtml += '<tr><td colspan="6" style="text-align:center; padding:30px">尚無商品資料</td></tr>';
     } else {
       ALL_PRODUCTS.forEach(i => {
         tableHtml += `
           <tr>
-            <td>${i.image ? `<img src="${i.image}" style="height:50px;width:50px;object-fit:cover;border-radius:4px;">` : '-'}</td>
+            <td>${i.image ? `<img src="${i.image}" style="height:50px; width:50px; object-fit:cover; border-radius:4px;">` : '-'}</td>
             <td style="color:#666;">${i.item_id}</td>
             <td style="font-weight:bold;">${i.item_name}</td>
             <td>$${i.unit_price}</td>
@@ -491,16 +903,13 @@ async function loadListing() {
     }
 
     tableHtml += '</tbody></table></div>';
-    
-    // 組合按鈕與表格
     p.innerHTML = topHtml + tableHtml;
 
-  } catch(e) {
+  } catch (e) {
     console.error("載入商品失敗:", e);
-    // 即使失敗，也要保留新增按鈕，並顯示錯誤訊息
     p.innerHTML = topHtml + `
       <div style="padding:20px; background:#FEE2E2; color:#991B1B; border-radius:8px; text-align:center;">
-        ⚠️ 無法讀取商品清單 (API 異常)，但您仍可嘗試點擊上方按鈕新增商品。
+        ⚠️ 無法讀取商品清單 (資料庫連線異常)：${e.message}
       </div>
     `;
   }
@@ -510,46 +919,45 @@ function editProd(id) {
   const i = id ? ALL_PRODUCTS.find(x => x.item_id == id) : null;
   const isNew = !i;
   
-  // Modal HTML: 加入庫存欄位、圖片網址唯讀、刪除按鈕
+  // 重置圖片選取變數
+  window.selectedImageFile = null;
+
   const h = `
   <div id="prodModal" class="modal show" style="display:flex;">
     <div class="modal-body">
-      <h3 style="margin-top:0;">${isNew ? '➕ 商品上架' : '✏️ 編輯商品'}</h3>
+      <h3 style="margin-top:0;">${isNew ? '➕ 新增商品上架' : '✏️ 編輯商品'}</h3>
       
-      <input type="hidden" id="pid" value="${i?.item_id || 'new_' + Math.floor(Date.now()/1000)}">
+      <input type="hidden" id="pid" value="${i?.item_id || 'ID-' + String(Math.floor(Date.now()/1000)).slice(-3)}">
       
-      <label style="display:block;margin:10px 0 5px;font-weight:bold;">品名</label>
-      <input type="text" id="pname" style="width:100%;padding:8px;" value="${i?.item_name || ''}">
+      <label style="display:block; margin:10px 0 5px; font-weight:bold;">品名</label>
+      <input type="text" id="pname" style="width:100%; padding:8px;" value="${i?.item_name || ''}">
       
-      <div style="display:flex;gap:10px;">
+      <div style="display:flex; gap:10px;">
         <div style="flex:1;">
-          <label style="display:block;margin:10px 0 5px;font-weight:bold;">售價</label>
-          <input type="number" id="pprice" style="width:100%;padding:8px;" value="${i?.unit_price || ''}">
+          <label style="display:block; margin:10px 0 5px; font-weight:bold;">售價</label>
+          <input type="number" id="pprice" style="width:100%; padding:8px;" value="${i?.unit_price || ''}">
         </div>
         <div style="flex:1;">
-          <label style="display:block;margin:10px 0 5px;font-weight:bold;">庫存量</label>
-          <input type="number" id="pstock" style="width:100%;padding:8px;" value="${i?.stock || '0'}">
+          <label style="display:block; margin:10px 0 5px; font-weight:bold;">庫存量</label>
+          <input type="number" id="pstock" style="width:100%; padding:8px;" value="${i?.stock || '0'}">
         </div>
       </div>
 
-      <label style="display:block;margin:10px 0 5px;font-weight:bold;">商品圖片</label>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <!-- 網址欄位設為 readonly (唯讀)，背景灰色 -->
-        <input type="text" id="pimg" style="flex:1;padding:8px;background:#f5f5f5;color:#666;" placeholder="請使用右側按鈕上傳..." value="${i?.image || ''}" readonly>
-        <label class="btn btn-outline" style="cursor:pointer;white-space:nowrap;">
-          📤 上傳
-          <input type="file" hidden onchange="upImg(this)">
+      <label style="display:block; margin:10px 0 5px; font-weight:bold;">商品圖片</label>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="text" id="pimg" style="flex:1; padding:8px; background:#f5f5f5; color:#666;" placeholder="請上傳本地圖檔..." value="${i?.image || ''}" readonly>
+        <label class="btn btn-outline" style="cursor:pointer; white-space:nowrap;">
+          📤 上傳圖檔
+          <input type="file" accept="image/*" hidden onchange="upImg(this)">
         </label>
       </div>
-      <div id="upStatus" style="font-size:12px;color:#666;margin-top:4px;min-height:20px;"></div>
+      <div id="upStatus" style="font-size:12px; color:#666; margin-top:4px; min-height:20px;"></div>
 
-      <div style="margin-top:20px;text-align:right;border-top:1px solid #eee;padding-top:15px;display:flex;justify-content:space-between;">
-        <!-- 左側：刪除按鈕 (只有編輯模式才顯示) -->
+      <div style="margin-top:20px; text-align:right; border-top:1px solid #eee; padding-top:15px; display:flex; justify-content:space-between;">
         <div>
           ${!isNew ? `<button class="btn btn-danger" onclick="delProd('${id}')">🗑️ 下架移除</button>` : ''}
         </div>
-        <!-- 右側：取消與儲存 -->
-        <div style="display:flex;gap:10px;">
+        <div style="display:flex; gap:10px;">
           <button class="btn btn-outline" onclick="this.closest('.modal').remove()">取消</button> 
           <button class="btn btn-success" onclick="saveProd()">儲存</button>
         </div>
@@ -560,81 +968,123 @@ function editProd(id) {
   document.body.insertAdjacentHTML('beforeend', h);
 }
 
-async function upImg(inp) {
+// 前端上傳預覽
+function upImg(inp) {
   const f = inp.files[0]; if (!f) return;
   const stat = document.getElementById('upStatus');
   
   const reader = new FileReader();
   reader.onload = function(e) {
-    // 將 Base64 資料暫存在 pimg 欄位中，不即時上傳
     document.getElementById('pimg').value = e.target.result;
-    stat.innerHTML = `<span style="color:blue">📸 圖片已選取（儲存後正式上傳）</span>`;
+    // 將實際的檔案物件儲存在全域變數，待點擊「儲存」時，直接上傳 Supabase Storage
+    window.selectedImageFile = f;
+    stat.innerHTML = `<span style="color:#059669">📸 圖片已選取（儲存商品時會自動上傳至 Storage）</span>`;
   };
   reader.readAsDataURL(f);
   inp.value = ''; 
 }
 
+// 儲存商品至 Supabase (包括圖片上傳)
 async function saveProd() {
+  if (!supabaseClient) return;
   const id = document.getElementById('pid').value;
   const name = document.getElementById('pname').value;
   const price = document.getElementById('pprice').value;
   const stock = document.getElementById('pstock').value;
-  const imgData = document.getElementById('pimg').value; // 這可能是舊連結或新 Base64
+  const imgData = document.getElementById('pimg').value;
 
   if (!name || !price) { alert('品名與售價為必填'); return; }
 
-  const btn = event.target; btn.disabled = true; btn.textContent = '處理中...';
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '處理中...';
 
   try {
-    // 判斷是否為新選擇的圖片 (Base64)
-    const isNewImage = imgData.startsWith('data:image');
+    let imageUrl = imgData;
 
-    await fetch(API_PRODUCT_SAVE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    // 1. 若有新選取的圖片檔案，將其上傳到 Supabase Storage Bucket
+    if (window.selectedImageFile) {
+      const file = window.selectedImageFile;
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${id}-${Math.floor(Date.now() / 1000)}.${fileExt}`;
+      const filePath = `products/${fileName}`;
+
+      // 上傳至名為 product-images 的儲存桶，注意此儲存桶必須設為公用 (Public)
+      const { data: uploadData, error: uploadError } = await supabaseClient.storage
+        .from('product-images')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // 取得公開的圖檔連結
+      const { data: publicUrlData } = supabaseClient.storage
+        .from('product-images')
+        .getPublicUrl(filePath);
+
+      imageUrl = publicUrlData.publicUrl;
+      window.selectedImageFile = null;
+    }
+
+    // 2. 使用 upsert 寫入商品資料庫 items_list
+    const { error: dbError } = await supabaseClient
+      .from('items_list')
+      .upsert({
         item_id: id,
         item_name: name,
-        unit_price: price,
-        stock: stock,
-        // 如果是新圖，傳送 Base64 給後端上傳；如果是舊圖，傳送原本網址
-        image_data: isNewImage ? imgData.split(',')[1] : null, 
-        image_url: isNewImage ? null : imgData
-      })
-    });
+        price: parseInt(price) || 0,
+        inventory: parseInt(stock) || 0,
+        image: imageUrl
+      });
+
+    if (dbError) throw dbError;
+
     alert('✅ 商品資料與圖片已儲存');
     document.getElementById('prodModal').remove();
     loadListing();
-  } catch (e) { alert('❌ 失敗'); console.error(e); } 
-  finally { btn.disabled = false; }
+  } catch (e) {
+    alert('❌ 儲存失敗：' + e.message);
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function delProd(id) {
+  if (!supabaseClient) return;
   if (!confirm('⚠️ 確定要將此商品下架移除嗎？此動作無法復原。')) return;
   
   try {
-    await fetch(API_PRODUCT_DELETE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ item_id: id })
-    });
+    const { error } = await supabaseClient
+      .from('items_list')
+      .delete()
+      .eq('item_id', id);
+
+    if (error) throw error;
     alert('🗑️ 商品已下架');
     document.getElementById('prodModal').remove();
     loadListing();
-  } catch (e) { alert('移除失敗'); }
+  } catch (e) {
+    alert('移除失敗：' + e.message);
+  }
 }
 
-function showBig(src){
-  const m = document.getElementById('imgModal');
-  if(m) {
+function showBig(src) {
+  const m = document.getElementById('bigImgModal');
+  if (m) {
     m.querySelector('img').src = src;
     m.style.display = 'flex';
   }
 }
 
-function closeModal(){document.getElementById('orderModal').classList.remove('show');}
-document.getElementById('orderModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
-window.onload=function(){ loadOrders(); };
+function closeModal() { document.getElementById('orderModal').classList.remove('show'); }
+document.getElementById('orderModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+// 頁面載入自動初始化
+window.onload = function() {
+  if (supabaseClient) {
+    loadOrders();
+  }
+};
 </script>
 </body>
 </html>

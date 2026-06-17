@@ -1,0 +1,1915 @@
+{
+  "name": "公關自動化流程",
+  "nodes": [
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"success\"\n}\n",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1024,
+        -240
+      ],
+      "id": "5f2e112b-caeb-4cda-9e10-f6f09ad6b25e",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2117ee8f-bc5b-438d-9bb7-376cfd38bf55",
+              "name": "=task_id",
+              "value": "={{ $json.body.task_id }}",
+              "type": "string"
+            },
+            {
+              "id": "7c061481-2389-44eb-aa09-72a389517493",
+              "name": "=created_at",
+              "value": "={{$now.toISO()}}",
+              "type": "string"
+            },
+            {
+              "id": "970b21b6-bddc-4809-87a2-40ffaa0bbf04",
+              "name": "status",
+              "value": "Submitted",
+              "type": "string"
+            },
+            {
+              "id": "3efed069-5b91-4a8b-9007-851642c62ed4",
+              "name": "=total_amount",
+              "value": "={{ $json.body.total_amount }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        144,
+        -352
+      ],
+      "id": "502d9965-ace3-4e9e-8896-838f701f0a48",
+      "name": "Edit Fields-產生單號/時間"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.items",
+        "include": "allOtherFields",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        272,
+        -208
+      ],
+      "id": "b489ad82-e9b0-4c87-b159-cae6ab1077c0",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "path": "items-status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -16,
+        256
+      ],
+      "id": "d9a42bd0-eb4a-48c6-a37f-0bda3cb098a5",
+      "name": "Webhook-Phase2 - items-status",
+      "webhookId": "fb202e39-449c-4694-89df-2535d1c0211c"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nconst groups = {};\n\nrows.forEach(row => {\n  const tid = row.task_id;\n  if (!groups[tid]) {\n    groups[tid] = {\n      task_id: tid,\n      applicant_name: row.applicant_name,\n      staff_id: row.staff_id,\n      department: row.department,\n      status: row.status || \"Submitted\",\n      apply_date: row.created_at,\n      close_date: row.updated_at,\n      total_amount: 0,\n      items: []\n    };\n  }\n  \n  if (row.item_name) {\n    groups[tid].items.push({\n      name: row.item_name,\n      qty: Number(row.quantity) || 0,\n      subtotal: Number(row.subtotal) || 0\n    });\n    groups[tid].total_amount += Number(row.subtotal) || 0;\n  }\n});\n\nconst allOrders = Object.values(groups);\nconst active = allOrders.filter(o => !['ready', 'submitted', 'done', 'closed'].includes(o.status.toLowerCase()));\nconst archived = allOrders.filter(o => ['ready', 'submitted', 'done', 'closed'].includes(o.status.toLowerCase()));\n\nreturn { active, archived };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        256
+      ],
+      "id": "1c16503f-e09f-47bd-8a79-016433860e89",
+      "name": "Code in JavaScript-（組合單筆主單＋明細）"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        784,
+        256
+      ],
+      "id": "035d0d52-e14f-4d40-abb0-8fc874f7c4a0",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "path": "orders",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        16,
+        528
+      ],
+      "id": "f6b0fc45-7cb4-44ba-8877-7d543e16c6fd",
+      "name": "Webhook-訂單管理系統1",
+      "webhookId": "67d02459-447e-4949-beb1-56b94e8d6f7d"
+    },
+    {
+      "parameters": {
+        "jsCode": "/* ======================================================\n * 終極修正版：處理欄位名稱有空白字元的問題\n * ====================================================== */\n\n// 1. 取得所有輸入\nconst allItems = $input.all();\n\n// 2. 分類容器\nconst applications = [];\nconst items = [];\n\n// 3. 分類邏輯（忽略欄位名稱的空白）\nfor (const item of allItems) {\n    const data = item.json;\n    const keys = Object.keys(data);\n    \n    // 找出真正的欄位名稱（不管有沒有空白）\n    const hasItemName = keys.some(k => k.trim() === 'item_name');\n    const hasTaskId = keys.some(k => k.trim() === 'task_id');\n    \n    // A. 有 item_name 就是明細\n    if (hasItemName) {\n        items.push(data);\n    } \n    // B. 沒有 item_name 但有 task_id 就是主檔\n    else if (hasTaskId) {\n        applications.push(data);\n    }\n}\n\n// 4. 建立明細對照表（處理空白欄位名）\nconst itemsMap = {};\nfor (const row of items) {\n    const keys = Object.keys(row);\n    \n    // 找出 task_id 欄位（不管有沒有空白）\n    const taskIdKey = keys.find(k => k.trim() === 'task_id');\n    const itemNameKey = keys.find(k => k.trim() === 'item_name');\n    const qtyKey = keys.find(k => k.trim() === 'quantity');\n    const subtotalKey = keys.find(k => k.trim() === 'subtotal');\n    \n    const taskId = String(row[taskIdKey] || '').trim();\n    if (!taskId) continue;\n    \n    if (!itemsMap[taskId]) itemsMap[taskId] = [];\n    \n    itemsMap[taskId].push({\n        item_name: row[itemNameKey] || '未知商品',\n        quantity: Number(row[qtyKey]) || 0,\n        subtotal: Number(row[subtotalKey]) || 0\n    });\n}\n\n// 5. 組合訂單\nconst active = [];\nconst archived = [];\n\nfor (const app of applications) {\n    const keys = Object.keys(app);\n    const taskIdKey = keys.find(k => k.trim() === 'task_id');\n    \n    const taskId = String(app[taskIdKey] || '').trim();\n    if (!taskId) continue;\n    \n    const statusKey = keys.find(k => k.trim() === 'status');\n    const statusRaw = String(app[statusKey] || '').toLowerCase();\n    \n    // 取得其他欄位（處理空白）\n    const getField = (obj, fieldName) => {\n        const key = Object.keys(obj).find(k => k.trim() === fieldName);\n        return obj[key];\n    };\n    \n    // 計算總金額\n    let total = Number(getField(app, 'total_amount')) || 0;\n    const orderItems = itemsMap[taskId] || [];\n    \n    if (total === 0 && orderItems.length > 0) {\n        total = orderItems.reduce((sum, i) => sum + i.subtotal, 0);\n    }\n\nconst order = {\n  task_id: taskId,\n  date: getField(app, 'created_at') || getField(app, 'date'), \n  user: getField(app, 'applicant_name') || getField(app, 'user'),\n  staff_id: getField(app, 'staff_id'),\n  phone: getField(app, 'applicant_phone'),\n  email: getField(app, 'applicant_email'),\n  department: getField(app, 'department'),\n  cost_center: getField(app, 'cost_center'),\n  reason: getField(app, 'reason'),\n  status: getField(app, 'status') || 'Pending',\n  items: orderItems,\n  total: total,\n  comment: getField(app, 'review_comment') || getField(app, 'comment') || '', // 新增這一行\n};\n\n    if (['done', 'closed', 'rejected'].includes(statusRaw)) {\n        archived.push(order);\n    } else {\n        active.push(order);\n    }\n}\n\n// 6. 直接回傳最終格式\nreturn {\n    orders: {\n        active: active,\n        archived: archived\n    }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        544
+      ],
+      "id": "47b7e323-be46-421a-abd9-7f6df639e959",
+      "name": "Code in JavaScript-（組合單筆主單＋明細）2",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        880,
+        544
+      ],
+      "id": "a4010a60-0a6b-4832-a54d-bba454647460",
+      "name": "Respond to Webhook3",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        480,
+        544
+      ],
+      "id": "ad3f666e-f22b-408a-9d0c-62fe378c111a",
+      "name": "Merge1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-order",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        992
+      ],
+      "name": "Webhook-更新訂單狀態",
+      "id": "1c3278fd-60a2-4e99-a885-5219fcfaa5f3",
+      "webhookId": "7a5c0bf3-d573-4e06-bf84-1a99b9dd44c1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: '狀態已更新' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1552,
+        960
+      ],
+      "name": "Respond Success",
+      "id": "3b2a7f60-4986-4000-aa22-d030081f32be"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-ready",
+              "leftValue": "={{ $('Webhook-更新訂單狀態').item.json.body.status }}",
+              "rightValue": "ready",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        576,
+        944
+      ],
+      "name": "IF-是否通知領取",
+      "id": "754ad077-e530-45ff-83ac-005520835299"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "【公關品管理系統】您的申請已可領取",
+        "message": "=<div style=\"font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.8; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;\">\n  \n  <p style=\"margin-bottom: 20px;\">您好 <strong style=\"font-size: 18px; color: #000;\">{{ $json.user }}</strong>，</p>\n  \n  <p style=\"margin-bottom: 20px;\">您的公關品申請已準備完成，請攜帶員工證前往領取。</p>\n  \n  <hr style=\"border: 0; border-top: 1px solid #ddd; margin: 30px 0;\">\n  \n  <p style=\"margin-bottom: 10px;\">\n    <strong>📦 訂單編號：</strong><br>\n    <span style=\"background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 18px;\">{{ $json.task_id }}</span>\n  </p>\n  \n  <p style=\"margin-bottom: 10px;\"><strong>📦 商品明細（共 {{ $json.item_count }} 項）：</strong></p>\n  <pre style=\"background: #f8f9fa; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 15px; border: 1px solid #eee; white-space: pre-wrap;\">{{ $json.item_list }}</pre>\n  \n  <p style=\"margin-top: 20px; font-size: 18px;\">\n    <strong>💰 總金額：</strong>\n    <span style=\"color: #e53e3e; font-weight: bold; font-size: 20px;\">${{ $json.total }}</span>\n  </p>\n  \n  <hr style=\"border: 0; border-top: 1px solid #ddd; margin: 30px 0;\">\n  \n  <div style=\"background: #e6fffa; padding: 20px; border-radius: 8px; color: #065f46; font-size: 16px;\">\n    <p style=\"margin: 0 0 10px 0;\"><strong>📍 領取地點：</strong>公關品管理中心</p>\n    <p style=\"margin: 0;\"><strong>🕐 領取時間：</strong>週一至週五 09:00-17:00</p>\n  </div>\n  \n  <p style=\"color: #666; font-size: 14px; margin-top: 40px; border-top: 1px dashed #ccc; padding-top: 20px;\">\n    如有疑問請聯繫管理單位。<br>\n    此信為系統自動發送，請勿回覆。\n  </p>\n</div>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1376,
+        768
+      ],
+      "name": "發送領取通知信",
+      "id": "305897f7-c0eb-4ab5-b3c4-62a02226da44",
+      "webhookId": "ef4eece2-4043-426d-8d6f-7073bab5f99f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "4QQLdvWpoxDgxsYM",
+          "name": "Gmail account -wfh.ai.workhub"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * 修正版：對接 MySQL 節點並組合郵件資料\n */\n\n// 1. 從「Update-Applications」節點抓取申請人基本資訊 (姓名與 Email)\nconst orderData = $('Update-Applications').first().json;\nconst user = orderData.applicant_name || '申請人';\nconst email = orderData.applicant_email || '';\n\n// 2. 從 Webhook 原始資料抓取 task_id\n// 這樣最保險，避免中間節點遺失欄位\nconst taskId = $('Webhook-更新訂單狀態').item.json.body.task_id;\n\n// 3. 從「Update-Application_Items」節點抓取該單所有商品明細\nconst items = $('Update-Application_Items').all();\n\nlet itemList = '';\nlet total = 0;\n\n// 4. 迴圈處理商品清單並計算總金額\nitems.forEach((item, i) => {\n  const name = item.json.item_name || '未知商品';\n  const qty = Number(item.json.quantity) || 1;\n  const subtotal = Number(item.json.subtotal) || 0;\n  \n  total += subtotal;\n  itemList += `${i + 1}. ${name} x${qty} - $${subtotal}\\n`;\n});\n\n// 5. 回傳給 Gmail 節點使用的格式\nreturn [{\n  json: {\n    user: user,\n    task_id: taskId,\n    email: email,\n    item_list: itemList,\n    total: total,\n    item_count: items.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        768
+      ],
+      "id": "1fd3b018-4889-4316-8d6d-3406b73437dd",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "98abab45-d218-4b35-bac6-69458c49f5bc",
+              "leftValue": "={{ $('Webhook-更新訂單狀態').item.json.body.status }}",
+              "rightValue": "EXCEPTION",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        560,
+        1232
+      ],
+      "id": "d37da733-2eba-4a84-ad39-6a40f69519fc",
+      "name": "IF-是否為異常通知"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=⚠️ 公關品申請異常通知：{{ $json.task_id }}",
+        "message": "=<div style=\"font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 18px; line-height: 1.8; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;\">\n  \n  <h2 style=\"color: #d32f2f; border-bottom: 3px solid #d32f2f; padding-bottom: 15px; font-size: 24px; font-weight: bold;\">⚠️ 公關品申請異常通知</h2>\n  \n  <p style=\"margin-top: 25px;\">\n    您好 <strong style=\"font-size: 20px; color: #000;\">{{ $json.user }}</strong>，\n  </p>\n  \n  <p>\n    您的申請單 <strong style=\"font-size: 20px; background-color: #eee; padding: 2px 6px; border-radius: 4px;\">{{ $json.task_id }}</strong> 經審核後發現異常，目前暫停處理。\n  </p>\n  \n  <div style=\"background-color: #fff5f5; border-left: 6px solid #d32f2f; padding: 20px; margin: 20px 0; font-size: 18px;\">\n    <strong style=\"display: block; margin-bottom: 8px; color: #d32f2f;\">🔴 異常原因說明：</strong>\n    <span style=\"font-weight: bold; color: #c53030; font-size: 22px;\">\n      {{ $json.comment }}\n    </span>\n  </div>\n\n  <div style=\"margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #fafafa;\">\n    <p style=\"margin: 0 0 10px 0; font-weight: bold; color: #555;\">📦 申請商品明細（共 {{ $json.item_count }} 項）：</p>\n    <pre style=\"font-family: 'Courier New', Courier, monospace; font-size: 15px; white-space: pre-wrap; margin: 0; color: #444;\">{{ $json.item_list }}</pre>\n    <p style=\"margin: 10px 0 0 0; border-top: 1px solid #eee; padding-top: 10px; text-align: right; font-weight: bold;\">\n      總計金額：<span style=\"color: #e53e3e;\">${{ $json.total }}</span>\n    </p>\n  </div>\n  \n  <p style=\"font-size: 18px;\">\n    請盡快聯繫管理單位確認後續處理方式，或修正後重新提交申請。\n  </p>\n  \n  <hr style=\"border: 0; border-top: 1px dashed #ccc; margin: 40px 0;\">\n  \n  <p style=\"color: #666; font-size: 14px; line-height: 1.6;\">\n    此信為系統自動發送，請勿直接回覆。<br>\n    如有人疑問請洽詢公關品管理中心。\n  </p>\n</div>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1376,
+        1104
+      ],
+      "name": "發送異常通知信",
+      "id": "4dde6c78-59fd-4579-a101-9caabcc94b49",
+      "webhookId": "ef4eece2-4043-426d-8d6f-7073bab5f99f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "4QQLdvWpoxDgxsYM",
+          "name": "Gmail account -wfh.ai.workhub"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. 從 MySQL 節點抓取申請人資訊 (對接 Update-Applications1)\nconst orderData = $('Update-Applications1').first().json;\nconst user = orderData.applicant_name || '申請人';\nconst email = orderData.applicant_email || '';\n\n// 2. 從 Webhook 原始資料抓取 task_id 與 異常原因 (comment)\nconst webhookData = $('Webhook-更新訂單狀態').item.json.body;\nconst taskId = webhookData.task_id;\nconst comment = webhookData.comment || '未提供具體原因';\n\n// 3. 從「Update-Application_Items1」節點抓取該單所有商品明細\nconst items = $('Update-Application_Items1').all();\n\nlet itemList = '';\nlet total = 0;\n\n// 4. 迴圈處理商品清單\nitems.forEach((item, i) => {\n  const name = item.json.item_name || '未知商品';\n  const qty = Number(item.json.quantity) || 1;\n  const subtotal = Number(item.json.subtotal) || 0;\n  \n  total += subtotal;\n  itemList += `${i + 1}. ${name} x${qty} - $${subtotal}\\n`;\n});\n\n// 5. 回傳給 Gmail 節點使用的格式\nreturn [{\n  json: {\n    user: user,\n    task_id: taskId,\n    email: email,\n    comment: comment,\n    item_list: itemList,\n    total: total,\n    item_count: items.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        1104
+      ],
+      "id": "09bb4b4b-95c9-4bd1-b30c-871640b1d737",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: '狀態已更新' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1568,
+        1248
+      ],
+      "name": "Respond Success1",
+      "id": "f0f9d7ef-eb81-4c54-9729-9c1ae09e525e"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\nconst formattedItems = allItems.map(item => {\n    const data = item.json;\n    return {\n        item_id: data.item_id,\n        item_name: data.item_tw, \n        unit_price: Number(data.price) || 0,\n        stock: Number(data.inventory) || 0,\n        // 關鍵修正：改為 data.image\n        image: data.image || \"\" \n    };\n});\nreturn { items: formattedItems };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        1424
+      ],
+      "id": "63d4cf1e-f43b-4650-9271-66b03ec63bd9",
+      "name": "Code-格式化庫存列表",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        608,
+        1424
+      ],
+      "id": "6525a54a-7bcd-4adb-a0d7-ccb81577e41a",
+      "name": "Respond-回傳列表",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "inventory-update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        48,
+        1680
+      ],
+      "id": "b8fa57b7-ca2d-470d-b46c-1685d818a730",
+      "name": "Webhook-更新單項庫存",
+      "webhookId": "1bae751c-73a3-4d2d-a934-f8cbc57e2926"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\": true, \"message\": \"庫存已更新\"}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        496,
+        1680
+      ],
+      "id": "925a7ee9-c080-4bd8-98cc-3e29d7840d7c",
+      "name": "Respond-更新成功"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\": true, \"message\": \"商品已刪除\"}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        400,
+        2128
+      ],
+      "id": "e4a5139f-ed3c-4654-96a2-9cbf3079662c",
+      "name": "Respond-刪除成功",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "product-delete",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -80,
+        2128
+      ],
+      "id": "0c55499e-4e12-40ce-9d6c-aaf2f9f8f5d9",
+      "name": "Webhook-刪除商品1",
+      "webhookId": "07703ec2-d064-4beb-8bdf-3819c59c8410",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "product-upload-image",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryPropertyName": "file"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        896,
+        2096
+      ],
+      "id": "2b6c5699-f173-4a70-94f0-a5f11234d67d",
+      "name": "Webhook-上傳圖片",
+      "webhookId": "4102a9f4-8ab7-415b-9f23-2366487ca4a5"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, url: $json.webViewLink, id: $json.id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1552,
+        2096
+      ],
+      "id": "6bcfbcc0-90ec-43be-8796-11be857ae2eb",
+      "name": "Respond-回傳連結"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "file0",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1qjc1UdEwr8RZwcC0rTjX8P033-bPhC0B",
+          "mode": "list",
+          "cachedResultName": "Publicity_Items_Images",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1qjc1UdEwr8RZwcC0rTjX8P033-bPhC0B"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1168,
+        2096
+      ],
+      "id": "0c84718d-c5f7-4fab-8680-72b43303e983",
+      "name": "Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "5ZZhAygueP68eOo7",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 使用 $(名稱).all() 取代 $node[名稱].all()\nconst webhookItem = $(\"Webhook-儲存商品2\").item.json.body;\nconst sheetItems = $(\"讀取items_list\").all();\n\n// --- 自動編號邏輯 ---\nlet finalId = webhookItem.item_id;\nif (!finalId || finalId.startsWith('new_')) {\n    let maxNum = 0;\n    sheetItems.forEach(item => {\n        const currentId = String(item.json.item_id || '');\n        const match = currentId.match(/(\\d+)$/);\n        if (match) {\n            const num = parseInt(match[1], 10);\n            if (num > maxNum) maxNum = num;\n        }\n    });\n    finalId = `ID-${(maxNum + 1).toString().padStart(3, '0')}`;\n}\n\n// --- 圖片轉二進位邏輯 ---\nconst base64Data = webhookItem.image_data;\nlet binaryData = {}; // 修正：初始化為空物件\n\nif (base64Data) {\n    // 如果帶有 data:image 標頭則移除\n    const base64String = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;\n    \n    // 修正：binary 物件結構必須精確\n    binaryData['file0'] = {\n        data: base64String,\n        fileName: `${finalId}.jpg`,\n        mimeType: 'image/jpeg',\n    };\n}\n\nreturn [{\n    json: {\n        ...webhookItem,\n        item_id: finalId,\n        hasImage: !!base64Data\n    },\n    // 如果沒有圖片，回傳 undefined 讓 IF 節點判斷\n    binary: Object.keys(binaryData).length > 0 ? binaryData : undefined\n}];"
+      },
+      "id": "50347c3b-5da1-40ce-84b9-e2489bd1226e",
+      "name": "處理ID與圖片名稱",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        2416
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "product-save",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "db2fb76f-896d-4727-b7bf-4aafefbf056b",
+      "name": "Webhook-儲存商品2",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -128,
+        2416
+      ],
+      "webhookId": "c57f6d10-4248-486c-8426-45c4d8591796"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.hasImage }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "1f65b3a6-def6-4942-b984-f0109c1bdfa8",
+      "name": "是否有新圖片1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        480,
+        2416
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "share",
+        "fileId": "={{ $json.id }}",
+        "permissionsUi": {
+          "permissionsValues": {
+            "role": "reader",
+            "type": "anyone"
+          }
+        },
+        "options": {}
+      },
+      "id": "674c238d-eeaf-4dbf-b506-d562e63b11c0",
+      "name": "設定公開分享1",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        880,
+        2304
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "5ZZhAygueP68eOo7",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "f724a054-f036-4534-b6ac-6b9cc13e0c7d",
+      "name": "完成回傳1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1328,
+        2416
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2bd6112f-c4a5-43c1-a7c4-08abbb6fa42e",
+              "name": "=new_inventory",
+              "value": "={{ Number($json.Inventory ?? $json.inventory ?? 0) - Number($node[\"Split Out\"].json[\"body.items\"].quantity ?? $json.quantity ?? 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "9dc7f4cb-9271-4fcc-9333-4a9fd28b42e9",
+              "name": "item_id",
+              "value": "={{ $node[\"Split Out\"].json[\"body.items\"].item_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        640,
+        -32
+      ],
+      "id": "0dea640c-7688-4cc7-bdc8-fcbcffd720e3",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "table": {
+          "__rl": true,
+          "value": "applications",
+          "mode": "list",
+          "cachedResultName": "applications"
+        },
+        "dataMode": "defineBelow",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "task_id",
+              "value": "={{ $json.task_id ?? $json.body?.task_id }}"
+            },
+            {
+              "column": "created_at",
+              "value": "={{ $json.created_at ?? $now.toISO() }}"
+            },
+            {
+              "column": "applicant_name",
+              "value": "={{ $json.body.applicant_name }}"
+            },
+            {
+              "column": "staff_id",
+              "value": "={{ $json.body.staff_id }}"
+            },
+            {
+              "column": "status",
+              "value": "={{ $json.status ?? $json.body.status ?? \"SUBMITTED\" }}"
+            },
+            {
+              "column": "applicant_phone",
+              "value": "={{ $json.body.phone }}"
+            },
+            {
+              "column": "applicant_email",
+              "value": "={{ $json.body.applicant_email }}"
+            },
+            {
+              "column": "department",
+              "value": "={{ $json.body.department }}"
+            },
+            {
+              "column": "cost_center",
+              "value": "={{ $json.body.cost_center }}"
+            },
+            {
+              "column": "reason",
+              "value": "={{ $json.body.reason }}"
+            },
+            {
+              "column": "total_amount",
+              "value": "={{ $json.total_amount ?? $json.body.total_amount ?? 0 }}"
+            },
+            {
+              "column": "updated_at",
+              "value": "={{ $now.toISO() }}"
+            },
+            {
+              "column": "reviewer",
+              "value": "={{ $json.body.reviewer }}"
+            },
+            {
+              "column": "review_comment",
+              "value": "={{ $json.body.revidw_comment }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        352,
+        -352
+      ],
+      "id": "6637965a-eaba-4dcc-84ea-55830162456c",
+      "name": "SQL-application1",
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "promo-apply",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -80,
+        -352
+      ],
+      "id": "c0e312cf-238c-4264-af37-2f8751252293",
+      "name": "Webhook-公關品申請系統",
+      "webhookId": "194674db-da66-41ad-bc92-dfc61dbf5b75"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT inventory\nFROM items_list\nWHERE item_id = '{{ $node[\"Split Out\"].json[\"body.items\"].item_id }}'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        464,
+        -32
+      ],
+      "id": "2e799011-e2a2-4f0b-9b40-0c01550d94fa",
+      "name": "SQL-items_list1",
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": {
+          "__rl": true,
+          "value": "items_list",
+          "mode": "list",
+          "cachedResultName": "items_list"
+        },
+        "dataMode": "defineBelow",
+        "columnToMatchOn": "item_id",
+        "valueToMatchOn": "={{ $json.item_id }}",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "inventory",
+              "value": "={{ $json.new_inventory }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        816,
+        -32
+      ],
+      "id": "59617526-bff5-4fd9-a7bc-345e270057b9",
+      "name": "SQL-items_list2",
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "table": {
+          "__rl": true,
+          "value": "application_items",
+          "mode": "list",
+          "cachedResultName": "application_items"
+        },
+        "dataMode": "defineBelow",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "task_id",
+              "value": "={{ $('Webhook-公關品申請系統').item.json.body.task_id }}"
+            },
+            {
+              "column": "item_id",
+              "value": "={{ $json[\"body.items\"]?.item_id ?? $json.item_id }}"
+            },
+            {
+              "column": "item_name",
+              "value": "={{ $json[\"body.items\"]?.item_name ?? $json.item_name }}"
+            },
+            {
+              "column": "unit_price",
+              "value": "={{ Number($json[\"body.items\"]?.unit_price ?? $json.unit_price ?? 0) }}"
+            },
+            {
+              "column": "quantity",
+              "value": "={{ Number($json[\"body.items\"]?.quantity ?? $json.quantity ?? 0) }}"
+            },
+            {
+              "column": "subtotal",
+              "value": "={{ Number($json[\"body.items\"]?.subtotal ?? $json.subtotal ?? 0) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        464,
+        -208
+      ],
+      "id": "601e6588-f04f-4234-812e-438141500293",
+      "name": "SQL-寫入application_items1",
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "inventory-list",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -112,
+        1440
+      ],
+      "id": "06c032fb-8135-4efe-8e25-b4c389860f3b",
+      "name": "Webhook-讀取item_list",
+      "webhookId": "f073ab8a-9454-4455-884e-5f9a592f90b4"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM items_list;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        160,
+        1440
+      ],
+      "id": "fd514e43-ab8f-4e60-8af5-3c0d0cdfe1c4",
+      "name": "Execute a SQL query",
+      "alwaysOutputData": true,
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    a.task_id, \n    a.applicant_name, \n    a.staff_id, \n    a.department, \n    a.status, \n    a.created_at, \n    a.updated_at,\n    ai.item_name, \n    ai.quantity, \n    ai.subtotal\nFROM applications a\nLEFT JOIN application_items ai ON a.task_id = ai.task_id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        208,
+        240
+      ],
+      "id": "51f0bd6b-9efe-4bd9-a6a7-c6a2c2bef0dc",
+      "name": "Get-Applications",
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM applications;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        256,
+        464
+      ],
+      "id": "fd53910e-df0e-484d-833f-52756c154bef",
+      "name": "Get-Applications1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM application_items;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        256,
+        656
+      ],
+      "id": "5156ba39-8ec6-43cf-a5cc-5f3dd0b12aa9",
+      "name": "Get-Applications_items1",
+      "executeOnce": false,
+      "alwaysOutputData": true,
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE applications \nSET \n  status = '{{ $json.body.status }}', \n  /* 使用 REPLACE 去掉 T 和 Z，讓格式符合 MySQL 要求 */\n  updated_at = REPLACE(REPLACE('{{ $json.body.updated_at }}', 'T', ' '), 'Z', ''), \n  review_comment = '{{ $json.body.comment }}' \nWHERE task_id = '{{ $json.body.task_id }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        272,
+        976
+      ],
+      "id": "b2924748-f377-4c94-9578-51bb04aa6729",
+      "name": "UPDATE-Applications",
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT applicant_name, applicant_email, task_id \nFROM applications \nWHERE task_id = '{{ $('Webhook-更新訂單狀態').item.json.body.task_id }}'\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        704,
+        784
+      ],
+      "id": "54ce4f03-31d9-4010-86c5-7dd025098df1",
+      "name": "Update-Applications",
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT applicant_name, applicant_email, task_id \nFROM applications \nWHERE task_id = '{{ $('Webhook-更新訂單狀態').item.json.body.task_id }}'\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        800,
+        1152
+      ],
+      "id": "13c3ec5f-cef1-4645-8b1e-4ff53560454e",
+      "name": "Update-Applications1",
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT item_name, quantity, subtotal \nFROM application_items \nWHERE task_id = '{{ $('Webhook-更新訂單狀態').item.json.body.task_id }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        944,
+        800
+      ],
+      "id": "e6be781e-3d86-478b-bd33-faf3d62c9ffd",
+      "name": "Update-Application_Items",
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT item_name, quantity, subtotal \nFROM application_items \nWHERE task_id = '{{ $('Webhook-更新訂單狀態').item.json.body.task_id }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        992,
+        1120
+      ],
+      "id": "395682ca-882a-457d-be36-ebaf6189da8d",
+      "name": "Update-Application_Items1",
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE `items_list` \nSET `inventory` = {{ $json.body.stock }}\nWHERE `item_id` = '{{ $json.body.item_id }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        256,
+        1680
+      ],
+      "id": "5d206e8a-96c5-43c5-8876-73ed7706e516",
+      "name": "MySQL-更新庫存",
+      "alwaysOutputData": false,
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM `items_list` \nWHERE `item_id` = '{{ $json.body.item_id }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        144,
+        2080
+      ],
+      "id": "96d07be5-e876-471f-8d60-e8604e1337e6",
+      "name": "MySQL-刪除商品",
+      "alwaysOutputData": false,
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "/* 只抓取現有的 ID 用來計算下一個編號 */\nSELECT item_id FROM items_list;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        48,
+        2416
+      ],
+      "id": "a32d7568-ba81-42b3-afca-5abe7a84f021",
+      "name": "讀取items_list",
+      "alwaysOutputData": true,
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO items_list (item_id, item_tw, inventory, price, image)\nVALUES (\n  '{{ $node[\"處理ID與圖片名稱\"].json.item_id }}',\n  '{{ $node[\"處理ID與圖片名稱\"].json.item_name }}',\n  {{ Number($node[\"處理ID與圖片名稱\"].json.stock) }},\n  {{ Number($node[\"處理ID與圖片名稱\"].json.unit_price) }},\n  /* 使用 lh3 直連網址格式 */\n  '{{ $(\"設定公開分享1\").isExecuted ? \"https://lh3.googleusercontent.com/d/\" + $node[\"Upload to Drive2\"].json.id : ($node[\"處理ID與圖片名稱\"].json.image_url || \"\") }}'\n)\nON DUPLICATE KEY UPDATE\n  item_tw = VALUES(item_tw),\n  inventory = VALUES(inventory),\n  price = VALUES(price),\n  image = VALUES(image);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        1104,
+        2432
+      ],
+      "id": "a5d26504-9186-435f-b0d6-3809f0e3b821",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delete-order",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -912,
+        1120
+      ],
+      "id": "4215a1aa-9d14-40b8-9c67-59dabe6f1967",
+      "name": "Webhook-刪除申請",
+      "webhookId": "83d660b2-305f-4214-8f2b-4398887ce6ec"
+    },
+    {
+      "parameters": {
+        "operation": "deleteTable",
+        "table": {
+          "__rl": true,
+          "value": "applications",
+          "mode": "list",
+          "cachedResultName": "applications"
+        },
+        "deleteCommand": "delete",
+        "where": {
+          "values": [
+            {
+              "column": "task_id",
+              "value": "={{$node[\"Webhook-刪除申請\"].json.body.task_id}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        -528,
+        1120
+      ],
+      "id": "43c11924-17e7-4ff5-a6e5-40c0d9af4f72",
+      "name": "Delete table or rows",
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "deleteTable",
+        "table": {
+          "__rl": true,
+          "value": "application_items",
+          "mode": "list",
+          "cachedResultName": "application_items"
+        },
+        "deleteCommand": "delete",
+        "where": {
+          "values": [
+            {
+              "column": "task_id",
+              "value": "={{$json.body.task_id}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        -720,
+        1120
+      ],
+      "id": "42052a29-7b41-4a5e-96ea-506e63ae2c9a",
+      "name": "Delete table or rows1",
+      "credentials": {
+        "mySql": {
+          "id": "mmc8cBvdA6FclP06",
+          "name": "MySQL account-公關品"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"message\": \"order deleted\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -288,
+        1120
+      ],
+      "id": "58b114b7-12a6-407c-bda7-cd65367b16ab",
+      "name": "Respond to Webhook2"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "file0",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1wogMu_ll0d0be-h-Gp2uM8KqqNMJZggi",
+          "mode": "list",
+          "cachedResultName": "上架商品圖檔",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1wogMu_ll0d0be-h-Gp2uM8KqqNMJZggi"
+        },
+        "options": {}
+      },
+      "id": "5cc223c0-69f7-48a4-982a-9cf33602cd41",
+      "name": "Upload to Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -192,
+        2768
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "yHRDD0FfmsN5pzNf",
+          "name": "Google Drive-wfh.ai"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "file0",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1wogMu_ll0d0be-h-Gp2uM8KqqNMJZggi",
+          "mode": "list",
+          "cachedResultName": "上架商品圖檔",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1wogMu_ll0d0be-h-Gp2uM8KqqNMJZggi"
+        },
+        "options": {}
+      },
+      "id": "3653bd85-3358-411d-9d78-dfd6be117c71",
+      "name": "Upload to Drive2",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        688,
+        2288
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "qepdmqJ1arGk7FlT",
+          "name": "Google Drive account 3"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Edit Fields-產生單號/時間": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "SQL-application1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "SQL-寫入application_items1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "SQL-items_list1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook-Phase2 - items-status": {
+      "main": [
+        [
+          {
+            "node": "Get-Applications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript-（組合單筆主單＋明細）": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook-訂單管理系統1": {
+      "main": [
+        [
+          {
+            "node": "Get-Applications1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get-Applications_items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript-（組合單筆主單＋明細）2": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript-（組合單筆主單＋明細）2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook-更新訂單狀態": {
+      "main": [
+        [
+          {
+            "node": "UPDATE-Applications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF-是否通知領取": {
+      "main": [
+        [
+          {
+            "node": "Update-Applications",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "發送領取通知信": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "發送領取通知信",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF-是否為異常通知": {
+      "main": [
+        [
+          {
+            "node": "Update-Applications1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Success1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "發送異常通知信": {
+      "main": [
+        [
+          {
+            "node": "Respond Success1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "發送異常通知信",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code-格式化庫存列表": {
+      "main": [
+        [
+          {
+            "node": "Respond-回傳列表",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook-更新單項庫存": {
+      "main": [
+        [
+          {
+            "node": "MySQL-更新庫存",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook-刪除商品1": {
+      "main": [
+        [
+          {
+            "node": "MySQL-刪除商品",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook-上傳圖片": {
+      "main": [
+        [
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Respond-回傳連結",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "處理ID與圖片名稱": {
+      "main": [
+        [
+          {
+            "node": "是否有新圖片1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook-儲存商品2": {
+      "main": [
+        [
+          {
+            "node": "讀取items_list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "是否有新圖片1": {
+      "main": [
+        [
+          {
+            "node": "Upload to Drive2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "設定公開分享1": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "SQL-items_list2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook-公關品申請系統": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields-產生單號/時間",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SQL-items_list1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SQL-items_list2": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SQL-寫入application_items1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook-讀取item_list": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code-格式化庫存列表",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get-Applications": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript-（組合單筆主單＋明細）",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get-Applications1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get-Applications_items1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "UPDATE-Applications": {
+      "main": [
+        [
+          {
+            "node": "IF-是否通知領取",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF-是否為異常通知",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update-Applications1": {
+      "main": [
+        [
+          {
+            "node": "Update-Application_Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update-Application_Items1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update-Application_Items": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update-Applications": {
+      "main": [
+        [
+          {
+            "node": "Update-Application_Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MySQL-刪除商品": {
+      "main": [
+        [
+          {
+            "node": "Respond-刪除成功",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MySQL-更新庫存": {
+      "main": [
+        [
+          {
+            "node": "Respond-更新成功",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "讀取items_list": {
+      "main": [
+        [
+          {
+            "node": "處理ID與圖片名稱",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "完成回傳1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook-刪除申請": {
+      "main": [
+        [
+          {
+            "node": "Delete table or rows1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete table or rows": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete table or rows1": {
+      "main": [
+        [
+          {
+            "node": "Delete table or rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Drive": {
+      "main": [
+        []
+      ]
+    },
+    "Upload to Drive2": {
+      "main": [
+        [
+          {
+            "node": "設定公開分享1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "435007ba-8a8c-4d90-97fa-66d54718229e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2ce74e4e996239bac6e6f146d0e28f1d7ab734a7660a58061a0b5e681589b0a8"
+  },
+  "nodeGroups": [],
+  "id": "vtDgwY6WPabiSqW7fnmsX",
+  "tags": []
+}

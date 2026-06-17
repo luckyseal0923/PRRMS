@@ -2,169 +2,490 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8" />
-<title>公關品申請系統</title>
+<title>公關品資源管理系統 (PRRMS)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- 引入 Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<!-- 引入 Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
+:root {
+  --primary-color: #0A84FF;
+  --primary-hover: #006edc;
+  --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --text-main: #2c3e50;
+  --text-muted: #7f8c8d;
+  --danger-color: #ff3b30;
+  --danger-bg: rgba(255, 59, 48, 0.1);
+  --success-color: #34c759;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", Arial, sans-serif;
-  background:#f6f7f9;
-  padding:20px;
+  font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--text-main);
+  padding: 40px 20px;
+  margin: 0;
+  min-height: 100vh;
 }
+
 h1 {
-  text-align:center;
-  margin-bottom:24px;
+  text-align: center;
+  margin-bottom: 8px;
+  font-weight: 700;
+  font-size: 32px;
+  color: #1a2a3a;
 }
+
+.subtitle {
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 40px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
 form {
-  background:#fff;
-  max-width:1200px;
-  margin:auto;
-  padding:24px;
-  border-radius:12px;
-  box-shadow:0 4px 14px rgba(0,0,0,0.08);
+  background: var(--card-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  max-width: 1200px;
+  margin: auto;
+  padding: 40px;
+  border-radius: 24px;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
 }
+
 fieldset {
-  border:none;
-  margin-bottom:32px;
+  border: none;
+  margin-bottom: 40px;
+  padding: 0;
 }
+
 legend {
-  font-weight:bold;
-  margin-bottom:16px;
-  font-size:17px;
-  border-left:4px solid #0A84FF;
-  padding-left:10px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  font-size: 20px;
+  color: #1a2a3a;
+  border-left: 5px solid var(--primary-color);
+  padding-left: 14px;
 }
+
 .row {
-  display:flex;
-  gap:14px;
-  margin-bottom:12px;
+  display: flex;
+  gap: 24px;
+  margin-bottom: 20px;
 }
+
 label {
-  flex:1;
-  font-size:14px;
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #34495e;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
+
 input[type="text"],
-input[type="number"] {
-  width:100%;
-  padding:10px;
-  margin-top:6px;
-  border:1px solid #ccc;
-  border-radius:8px;
-  font-size:16px;
+input[type="email"] {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  font-size: 16px;
+  background: rgba(255, 255, 255, 0.8);
+  box-sizing: border-box;
+  transition: all 0.3s ease;
 }
-table {
-  width:100%;
-  border-collapse:collapse;
-  margin-top:16px;
+
+input[type="text"]:focus,
+input[type="email"]:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.15);
+  background: #fff;
 }
-th, td {
-  border-bottom:1px solid #ddd;
-  padding:14px;
-  text-align:center;
+
+/* Card Grid Layout */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 24px;
 }
-th {
-  background:#f1f3f5;
+
+/* Premium Product Card */
+.product-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(31, 38, 135, 0.04);
+  transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 0.4s ease, border-color 0.3s;
+  display: flex;
+  flex-direction: column;
 }
-td.name {
-  text-align:left;
-  font-weight:600;
+
+.product-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 16px 40px rgba(31, 38, 135, 0.08);
+  border-color: rgba(10, 132, 255, 0.3);
 }
-.stock.low {
-  color:#d9534f;
-  font-weight:bold;
+
+/* Low Stock Badge */
+.badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 20px;
+  z-index: 10;
 }
+
+.badge.low-stock {
+  background: var(--danger-color);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3);
+}
+
+/* Card Image */
+.card-image-wrapper {
+  width: 100%;
+  height: 180px;
+  background: #eaedf1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.5s ease;
+}
+
+.card-image:hover {
+  transform: scale(1.06);
+}
+
+.no-image {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Card Info */
+.card-info {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.card-title {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a2a3a;
+  line-height: 1.4;
+}
+
+.card-price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.price-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.price-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.card-stock-row {
+  font-size: 13px;
+  color: #4f5f6f;
+  margin-bottom: 20px;
+}
+
+.card-stock-row.low {
+  color: var(--danger-color);
+  font-weight: 700;
+}
+
+/* Counter Widget */
+.qty-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  background: #f1f3f5;
+  border-radius: 30px;
+  padding: 4px;
+}
+
+.qty-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: #fff;
+  color: #1a2a3a;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+}
+
+.qty-btn:hover {
+  background: #e9ecef;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.qty-btn:active {
+  transform: scale(0.9);
+}
+
+.qty-input {
+  width: 50px;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a2a3a;
+  margin: 0;
+  padding: 0;
+}
+
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.qty-input[type=number] {
+  -moz-appearance: textfield;
+}
+
 .total-box {
-  margin-top:24px;
-  text-align:right;
-  font-size:22px;
-  font-weight:bold;
+  margin-top: 24px;
+  text-align: right;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a2a3a;
 }
+
+.total-box span {
+  color: var(--primary-color);
+}
+
 .submit-area {
   display: flex;
   justify-content: center;
-  gap: 32px;              /* ✅ 按鈕間距加大 */
-  margin-top: 36px;
+  gap: 24px;
+  margin-top: 40px;
 }
 
-/* 送出申請：主按鈕（更突出） */
 button[type="submit"] {
-  padding: 16px 48px;     /* ✅ 比較大顆 */
+  padding: 16px 48px;
   font-size: 18px;
   font-weight: 600;
-  background: #0A84FF;
+  background: var(--primary-color);
   color: #fff;
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 20px rgba(10, 132, 255, 0.25);
 }
 
 button[type="submit"]:hover {
-  background: #006edc;
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(10, 132, 255, 0.35);
 }
 
-/* 狀態看板：次要按鈕 */
+button[type="submit"]:active {
+  transform: translateY(0);
+}
+
 button.status-btn {
-  padding: 14px 40px;
+  padding: 16px 40px;
   font-size: 16px;
-  background: #e9ecef;    /* ✅ 淺色，退一階 */
-  color: #333;
-  border: 1px solid #ced4da;
-  border-radius: 12px;
+  font-weight: 600;
+  background: #fff;
+  color: #4a5a6a;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 14px;
   cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 button.status-btn:hover {
-  background: #dee2e6;
+  background: #f1f3f5;
+  color: var(--primary-color);
 }
-.item-toggle {
-  margin-left:8px;
-  font-size:14px;
-  cursor:pointer;
-  color:#0A84FF;
-}
+
+/* Lightbox Modal */
 .modal {
-  display:none;
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,0.6);
-  z-index:999;
-  align-items:center;
-  justify-content:center;
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 18, 30, 0.85);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
 }
+
 .modal img {
-  max-width:90%;
-  max-height:90%;
-  border-radius:12px;
-  background:#fff;
+  max-width: 85%;
+  max-height: 85%;
+  border-radius: 16px;
+  box-shadow: 0 12px 50px rgba(0,0,0,0.5);
+  border: 2px solid rgba(255,255,255,0.1);
+  background: #fff;
 }
+
 .modal-close {
-  position:absolute;
-  top:20px;
-  right:24px;
-  font-size:30px;
-  color:#fff;
-  cursor:pointer;
+  position: absolute;
+  top: 24px;
+  right: 32px;
+  font-size: 36px;
+  color: #fff;
+  cursor: pointer;
+  transition: color 0.2s;
+  font-family: sans-serif;
 }
-@media (max-width:768px){
-  table, thead, tbody, tr, th, td { display:block; }
-  thead { display:none; }
-  tbody tr {
-    background:#fff;
-    margin-bottom:16px;
-    padding:16px;
-    border-radius:14px;
-    box-shadow:0 2px 10px rgba(0,0,0,0.08);
+
+.modal-close:hover {
+  color: var(--primary-color);
+}
+
+/* Setup Assistant Overlay */
+.setup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 18, 30, 0.7);
+  backdrop-filter: blur(10px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.setup-card {
+  background: #fff;
+  padding: 36px;
+  border-radius: 24px;
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  text-align: center;
+}
+
+.setup-card h2 {
+  margin-top: 0;
+  color: #1a2a3a;
+  font-size: 22px;
+}
+
+.setup-card p {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.setup-input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+.setup-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.setup-btn:hover {
+  background: var(--primary-hover);
+}
+
+@media (max-width: 768px) {
+  form {
+    padding: 24px;
+    border-radius: 16px;
   }
-  td { border:none; text-align:left; padding:8px 0; }
-  td.name { display:flex; justify-content:space-between; align-items:center; }
-  button[type="submit"] { width:100%; }
+  .row {
+    flex-direction: column;
+    gap: 16px;
+  }
+  .submit-area {
+    flex-direction: column;
+    gap: 16px;
+  }
+  button[type="submit"], button.status-btn {
+    width: 100%;
+  }
 }
 </style>
 </head>
 
 <body>
 
-<h1>公關品申請系統</h1>
+<h1>公關品資源管理系統</h1>
+<div class="subtitle">Public Relations Resource Management System, PRRMS</div>
+
+<!-- Supabase 連線設定小幫手 (僅在未填憑證時顯示) -->
+<div id="setupAssistant" class="setup-overlay" style="display:none;">
+  <div class="setup-card">
+    <h2>🔑 串接您的 Supabase 專案</h2>
+    <p>系統檢測到您尚未設定 Supabase 憑證。請輸入專案 URL 與 Anon Key 以進行資料庫連線：</p>
+    <input type="text" id="setupUrl" class="setup-input" placeholder="Supabase Project URL (https://xxxx.supabase.co)" />
+    <input type="text" id="setupKey" class="setup-input" placeholder="Supabase Anon Key" />
+    <button type="button" class="setup-btn" onclick="saveCredentials()">確認並儲存</button>
+  </div>
+</div>
 
 <form id="applyForm">
 
@@ -172,39 +493,33 @@ button.status-btn:hover {
   <legend>一、申請單位資料（必填）</legend>
 
   <div class="row">
-    <label>申請人*<input type="text" name="applicant_name" required></label>
-    <label>院內員編*<input type="text" name="staff_id" required></label>
+    <label>申請人*<input type="text" name="applicant_name" required placeholder="請輸入姓名"></label>
+    <label>院內員編*<input type="text" name="staff_id" required placeholder="請輸入員編"></label>
   </div>
 
   <div class="row">
-    <label>申請者電話*<input type="text" name="phone" required></label>
-    <label>電子信箱*<input type="text" name="applicant_email" required></label>
+    <label>申請者電話*<input type="text" name="phone" required placeholder="請輸入聯絡電話"></label>
+    <label>電子信箱*<input type="email" name="applicant_email" required placeholder="請輸入院內電子郵件"></label>
   </div>
 
   <div class="row">
-    <label>申請單位*<input type="text" name="department" required></label>
-    <label>成本中心*<input type="text" name="costCenter" required></label>
+    <label>申請單位*<input type="text" name="department" required placeholder="請輸入處室/部門名稱"></label>
+    <label>成本中心*<input type="text" name="costCenter" required placeholder="請輸入成本中心代碼"></label>
   </div>
 
   <div class="row">
-    <label>領取事由*<input type="text" name="reason" required></label>
+    <label>領取事由*<input type="text" name="reason" required placeholder="請描述公關品领用用途或對象"></label>
   </div>
 </fieldset>
 
 <fieldset>
-  <legend>二、公關品申請數量</legend>
-
-  <table>
-    <thead>
-      <tr>
-        <th>品項</th>
-        <th>單價</th>
-        <th>庫存</th>
-        <th>申請數量</th>
-      </tr>
-    </thead>
-    <tbody id="itemsTable"></tbody>
-  </table>
+  <legend>二、公關品資源申請清單</legend>
+  <!-- 卡片式呈現網格 -->
+  <div class="card-grid" id="itemsGrid">
+    <div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px 0;">
+      ⏳ 商品載入中，請稍候…
+    </div>
+  </div>
 </fieldset>
 
 <div class="total-box">
@@ -213,182 +528,276 @@ button.status-btn:hover {
 
 <div class="submit-area">
   <button type="submit">送出申請</button>
-
-  <button
-    type="button"
-    class="status-btn"
-    onclick="window.open(
-      'https://promotional-items-booking.zeabur.app/Items-status.html',
-      '_blank'
-    )"
-  >
-    狀態看板
-  </button>
+  <button type="button" class="status-btn" onclick="goToStatusPage()">狀態看板</button>
 </div>
 
 </form>
 
+<!-- 圖片燈箱 -->
 <div class="modal" id="imgModal">
   <span class="modal-close" id="modalClose">✕</span>
-  <img id="modalImg">
+  <img id="modalImg" src="">
 </div>
 
 <script>
-// 1. 全域變數與 API 位址
-let items = [];
-const GET_URL = 'https://chihwei-n8n.zeabur.app/webhook/inventory-list';
-const POST_URL = 'https://chihwei-n8n.zeabur.app/webhook/promo-apply';
+// =========================================================================
+// 1. Supabase 憑證設定與初始化
+// =========================================================================
+const DEFAULT_SUPABASE_URL = 'https://awqrpzgkndysizvwqfmy.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_6Km_NaLMwawXQD9lMH7aMw_AsQmjGU0';
 
-// 產生 Task ID (例如：REQ1714567890)
-function generatetask_id() {
-    return 'REQ' + Date.now();
+let supabaseUrl = localStorage.getItem('supabaseUrl') || DEFAULT_SUPABASE_URL;
+let supabaseKey = localStorage.getItem('supabaseKey') || DEFAULT_SUPABASE_ANON_KEY;
+
+// 檢查是否需要顯示設定小幫手
+if (supabaseUrl === 'YOUR_SUPABASE_URL' || supabaseKey === 'YOUR_SUPABASE_ANON_KEY' || !supabaseUrl || !supabaseKey) {
+    document.getElementById('setupAssistant').style.display = 'flex';
 }
 
-// 函式：從 API 讀取並更新畫面
+function saveCredentials() {
+    const url = document.getElementById('setupUrl').value.trim();
+    const key = document.getElementById('setupKey').value.trim();
+    if (!url || !key) {
+        alert('請確實填寫 URL 與 Key');
+        return;
+    }
+    localStorage.setItem('supabaseUrl', url);
+    localStorage.setItem('supabaseKey', key);
+    window.location.reload();
+}
+
+let supabaseClient = null;
+if (supabaseUrl && supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseKey && supabaseKey !== 'YOUR_SUPABASE_ANON_KEY') {
+    supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+}
+
+// =========================================================================
+// 2. 業務邏輯與畫面渲染
+// =========================================================================
+let items = [];
+
+// 產生單號：PR-起單日期(YYYYMMDD)-隨機兩位大寫英文字
+function generateTaskId() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${y}${m}${day}`;
+    
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const r1 = chars.charAt(Math.floor(Math.random() * chars.length));
+    const r2 = chars.charAt(Math.floor(Math.random() * chars.length));
+    return `PR-${dateStr}-${r1}${r2}`;
+}
+
+// 取得商品資料
 async function fetchItems() {
+    if (!supabaseClient) return;
     try {
-        const res = await fetch(GET_URL);
-        const data = await res.json();
-        items = data.items || [];
-        renderTable();
+        const { data, error } = await supabaseClient
+            .from('items_list')
+            .select('*')
+            .order('item_id');
+            
+        if (error) throw error;
+        items = data || [];
+        renderCards();
     } catch (err) {
-        console.error('讀取庫存失敗:', err);
+        console.error('讀取商品庫存失敗:', err);
+        document.getElementById('itemsGrid').innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; color: var(--danger-color); padding: 40px 0; font-weight: bold;">
+                ⚠️ 庫存載入失敗，請檢查 Supabase 連線或資料庫 Table 是否建立！
+            </div>
+        `;
     }
 }
 
-// 函式：渲染表格
-function renderTable() {
-    const tbody = document.getElementById('itemsTable');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    items.forEach(i => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td class="name">
-                ${i.item_name} 
-                ${i.image ? `<span class="item-toggle" data-img="${i.image}" style="color:#0A84FF; cursor:pointer; margin-left:8px;">看圖 ▸</span>` : ''}
-            </td>
-            <td>NT$ ${i.unit_price}</td>
-            <td class="${i.stock <= 10 ? 'stock low' : 'stock'}">庫存：${i.stock}</td>
-            <td>
-                <input type="number" min="0" max="${i.stock}" 
-                       data-id="${i.item_id}" 
-                       placeholder="請輸入數量" 
-                       class="qty-input">
-            </td>
+// 渲染卡片式商品版面
+function renderCards() {
+    const grid = document.getElementById('itemsGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    
+    if (items.length === 0) {
+        grid.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px 0;">
+                📭 目前無上架商品。
+            </div>
         `;
-        tbody.appendChild(tr);
+        return;
+    }
+
+    items.forEach(i => {
+        const isLow = i.inventory <= 10;
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
+            ${isLow ? '<span class="badge low-stock">低庫存</span>' : ''}
+            <div class="card-image-wrapper">
+                ${i.image ? `<img src="${i.image}" class="card-image" alt="${i.item_name}">` : '<div class="no-image">無圖片</div>'}
+            </div>
+            <div class="card-info">
+                <h3 class="card-title">${i.item_name}</h3>
+                <div class="card-price-row">
+                    <span class="price-label">單價</span>
+                    <span class="price-value">NT$ ${i.price}</span>
+                </div>
+                <div class="card-stock-row ${isLow ? 'low' : ''}">
+                    <span>庫存量：${i.inventory}</span>
+                </div>
+                <div class="qty-selector">
+                    <button type="button" class="qty-btn minus" onclick="adjustQty('${i.item_id}', -1)">−</button>
+                    <input type="number" min="0" max="${i.inventory}" 
+                           data-id="${i.item_id}" 
+                           value="0"
+                           class="qty-input"
+                           oninput="onQtyChange('${i.item_id}', this)">
+                    <button type="button" class="qty-btn plus" onclick="adjustQty('${i.item_id}', 1)">+</button>
+                </div>
+            </div>
+        `;
+        grid.appendChild(card);
     });
 }
 
+// 數量按鈕調整
+window.adjustQty = (itemId, change) => {
+    const input = document.querySelector(`.qty-input[data-id="${itemId}"]`);
+    if (!input) return;
+    const max = parseInt(input.max) || 0;
+    let val = parseInt(input.value) || 0;
+    val = Math.max(0, Math.min(max, val + change));
+    input.value = val;
+    updateTotalAmount();
+};
+
+// 數量輸入框手動輸入
+window.onQtyChange = (itemId, input) => {
+    const max = parseInt(input.max) || 0;
+    let val = parseInt(input.value) || 0;
+    if (isNaN(val) || val < 0) val = 0;
+    if (val > max) val = max;
+    input.value = val;
+    updateTotalAmount();
+};
+
+// 即時更新總金額
+function updateTotalAmount() {
+    let total = 0;
+    const inputs = document.querySelectorAll('.qty-input');
+    inputs.forEach(inp => {
+        const it = items.find(item => item.item_id == inp.dataset.id);
+        const q = parseInt(inp.value) || 0;
+        if (it) total += q * it.price;
+    });
+    document.getElementById('totalAmount').textContent = total.toLocaleString();
+}
+
+// 前往狀態看板
+function goToStatusPage() {
+    window.location.href = 'Items-status.html';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    // 獲取 DOM 元素
     const applyForm = document.getElementById('applyForm');
     const totalAmountEl = document.getElementById('totalAmount');
-    const tbody = document.getElementById('itemsTable');
+    const grid = document.getElementById('itemsGrid');
     const modal = document.getElementById('imgModal');
     const modalImg = document.getElementById('modalImg');
     const modalClose = document.getElementById('modalClose');
 
-    // 初始載入庫存
-    fetchItems();
+    // 初始載入
+    if (supabaseClient) {
+        fetchItems();
+    }
 
-    // 5. 即時計算總金額
-    tbody.oninput = (e) => {
-        if (!e.target.classList.contains('qty-input')) return;
-        let total = 0;
-        const inputs = tbody.querySelectorAll('.qty-input');
-        inputs.forEach(inp => {
-            const it = items.find(item => item.item_id == inp.dataset.id);
-            if (it) total += (parseInt(inp.value) || 0) * it.unit_price;
-        });
-        totalAmountEl.textContent = total.toLocaleString();
-    };
-
-    // 6. 看圖燈箱功能
-    tbody.onclick = e => {
-        if (e.target.classList.contains('item-toggle')) {
-            modalImg.src = e.target.dataset.img;
+    // 燈箱控制
+    grid.onclick = e => {
+        if (e.target.classList.contains('card-image')) {
+            modalImg.src = e.target.src;
             modal.style.display = 'flex';
         }
     };
-
-    if(modalClose) modalClose.onclick = () => modal.style.display = 'none';
+    if (modalClose) modalClose.onclick = () => modal.style.display = 'none';
     window.onclick = e => { if (e.target === modal) modal.style.display = 'none'; };
-// 7. 表單送出處理
+
+    // 送出申請
     applyForm.onsubmit = async (e) => {
         e.preventDefault();
+        
+        if (!supabaseClient) {
+            alert('請先填寫 Supabase 連線憑證！');
+            return;
+        }
 
-        // ✅ 修改點：在前端先產生唯一的 task_id，確保主檔與明細使用同一個單號
-        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        const randomStr = Math.floor(Math.random() * 900 + 100);
-        const task_id = `task-${dateStr}-${randomStr}`; 
+        const task_id = generateTaskId();
 
-        const payload = {
-            task_id: task_id, 
-            applicant_name: applyForm.applicant_name.value,
-            staff_id: applyForm.staff_id.value,
-            phone: applyForm.phone.value,
-            applicant_email: applyForm.applicant_email.value,
-            department: applyForm.department.value,
-            cost_center: applyForm.costCenter.value,
-            reason: applyForm.reason.value,
-            status: 'Submitted', // 確保與 n8n 判斷邏輯的大小寫一致
-            total_amount: Number(totalAmountEl.textContent.replace(/,/g, '')),
-            items: []
-        };
+        // 收集要申請的品項與資訊
+        const itemIds = [];
+        const itemNames = [];
+        const prices = [];
+        const quantities = [];
+        let totalAmount = 0;
 
-        // 收集申請品項
-        tbody.querySelectorAll('.qty-input').forEach(inp => {
+        grid.querySelectorAll('.qty-input').forEach(inp => {
             const q = parseInt(inp.value) || 0;
             if (q > 0) {
                 const it = items.find(item => item.item_id == inp.dataset.id);
                 if (it) {
-                    payload.items.push({
-                        task_id: task_id, // ✅ 使用與主檔相同的 task_id
-                        item_id: it.item_id,
-                        item_name: it.item_name,
-                        unit_price: it.unit_price,
-                        quantity: q,
-                        subtotal: it.unit_price * q
-                    });
+                    itemIds.push(it.item_id);
+                    itemNames.push(it.item_name);
+                    prices.push(it.price);
+                    quantities.push(q);
+                    totalAmount += it.price * q;
                 }
             }
         });
 
-        if (payload.items.length === 0) {
-            alert('請至少填寫一個品項的數量');
+        if (itemIds.length === 0) {
+            alert('請至少選擇一個品項並填寫大於 0 的數量');
             return;
         }
 
+        const submitBtn = applyForm.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = '申請提交中...';
+
         try {
-            const res = await fetch(POST_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+            // 呼叫原子性 RPC 提交函數（新增申請、寫入明細、更新庫存一次完成）
+            const { error } = await supabaseClient.rpc('create_promo_application', {
+                p_task_id: task_id,
+                p_applicant_name: applyForm.applicant_name.value,
+                p_staff_id: applyForm.staff_id.value,
+                p_phone: applyForm.phone.value,
+                p_email: applyForm.applicant_email.value,
+                p_department: applyForm.department.value,
+                p_cost_center: applyForm.costCenter.value,
+                p_reason: applyForm.reason.value,
+                p_total_amount: totalAmount,
+                p_item_ids: itemIds,
+                p_item_names: itemNames,
+                p_prices: prices,
+                p_quantities: quantities
             });
 
-            const result = await res.json();
+            if (error) throw error;
+
+            alert('🎉 申請成功！單號為：' + task_id);
+            applyForm.reset();
+            totalAmountEl.textContent = '0';
             
-            if (result.status === 'success' || res.ok) {
-                alert('申請成功！單號：' + task_id);
-                applyForm.reset();
-                totalAmountEl.textContent = '0';
-                
-                // 送出成功後更新畫面庫存
-                await fetchItems(); 
-            } else {
-                alert('伺服器回應錯誤，請檢查 n8n 流程');
-            }
+            // 重新整理商品清單
+            await fetchItems();
         } catch (err) {
-            alert('連線失敗，請檢查網路或 n8n CORS 設定');
+            alert('❌ 申請失敗，錯誤訊息：' + (err.message || '資料庫寫入異常'));
             console.error('Submit Error:', err);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '送出申請';
         }
     };
-
 });
 </script>
-
 
 </body>
 </html>

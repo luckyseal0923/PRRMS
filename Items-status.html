@@ -2,157 +2,459 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8" />
-<title>公關品申請狀態看板</title>
+<title>公關品資源管理系統 - 申請狀態看板</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- 引入 Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<!-- 引入 Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
 <style>
+:root {
+  --primary-color: #0A84FF;
+  --primary-hover: #006edc;
+  --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --text-main: #2c3e50;
+  --text-muted: #7f8c8d;
+  --danger-color: #ff3b30;
+  --success-color: #34c759;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", Arial, sans-serif;
-  background:#f6f7f9;
-  padding:20px;
-}
-h1 { text-align:center; margin-bottom:20px; }
-
-/* ===== 查詢 ===== */
-.search-box {
-  max-width:1200px;
-  margin:0 auto 24px;
-  display:flex;
-  gap:10px;
-}
-.search-box input {
-  flex:1; padding:10px; border-radius:8px;
-  border:1px solid #ccc; font-size:14px;
-}
-.search-box button {
-  padding:10px 16px; border:none; border-radius:8px;
-  background:#0A84FF; color:#fff; cursor:pointer;
+  font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--text-main);
+  padding: 40px 20px;
+  margin: 0;
+  min-height: 100vh;
 }
 
-/* ===== 卡片 ===== */
-.board {
-  display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap:20px;
-  max-width:1200px;
-  margin:auto;
-}
-.card {
-  background:#fff; border-radius:12px; padding:16px;
-  box-shadow:0 2px 10px rgba(0,0,0,0.08);
-}
-.title { font-size:18px; font-weight:700; margin-bottom:6px; }
-.sub { font-size:14px; margin-bottom:4px; }
-.money { font-size:15px; font-weight:600; margin-top:6px; }
-
-/* ===== 狀態列 ===== */
-.timeline { display:flex; align-items:center; margin:14px 0; }
-.step {
-  flex:1; text-align:center; font-size:12px;
-  position:relative; color:#999;
-}
-.step::before {
-  content:''; display:block; width:14px; height:14px;
-  margin:0 auto 6px; border-radius:50%; background:#ccc;
-}
-.step::after {
-  content:''; position:absolute; top:7px; left:50%;
-  width:100%; height:2px; background:#ccc; z-index:-1;
-}
-.step:last-child::after { display:none; }
-.step.done { color:#0A84FF; }
-.step.done::before, .step.done::after { background:#0A84FF; }
-.step.current { color:#28a745; font-weight:bold; }
-.step.current::before { background:#28a745; }
-.step.exception { color:#dc3545; font-weight:bold; }
-.step.exception::before { background:#dc3545; }
-
-/* ===== 明細 ===== */
-.details {
-  display:none; margin-top:10px; font-size:13px;
-  color:#555; border-top:1px dashed #ddd; padding-top:10px;
-}
-.toggle-btn {
-  margin-top:8px; background:none; border:none;
-  color:#0A84FF; cursor:pointer; font-size:14px;
+h1 {
+  text-align: center;
+  margin-bottom: 8px;
+  font-weight: 700;
+  font-size: 32px;
+  color: #1a2a3a;
 }
 
-/* ===== 結案清單 ===== */
-.archive { max-width:1200px; margin:40px auto 0; }
-.archive h3 { cursor:pointer; font-size:16px; }
-.archive table {
-  width:100%; border-collapse:collapse;
-  background:#fff; margin-top:10px; display:none;
+.subtitle {
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 40px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
 }
-.archive th, .archive td {
-  border-bottom:1px solid #eee;
-  padding:8px; font-size:14px; text-align:left;
-}
-.archive th {
-  background:#f0f2f5; cursor:pointer; user-select:none;
-}
-.sort-icon { margin-left:6px; font-size:11px; color:#888; }
-.sort-active { color:#0A84FF; font-weight:bold; }
 
-  .nav-actions {
+/* ===== 導航區 ===== */
+.nav-actions {
   max-width: 1200px;
   margin: 0 auto 16px;
   text-align: right;
 }
 
 .apply-btn {
-  padding: 8px 16px;
+  padding: 12px 24px;
   font-size: 14px;
-  background: #f1f3f5;      /* 淺灰底 */
-  color: #0A84FF;           /* 主系統藍 */
-  border: 1px solid #cfe0ff;
-  border-radius: 8px;
+  font-weight: 600;
+  background: var(--card-bg);
+  color: var(--primary-color);
+  border: 1px solid rgba(10, 132, 255, 0.3);
+  border-radius: 12px;
   cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
 }
 
 .apply-btn:hover {
-  background: #e7f1ff;
+  background: var(--primary-color);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(10, 132, 255, 0.25);
+}
+
+/* ===== 查詢區 ===== */
+.search-box {
+  max-width: 1200px;
+  margin: 0 auto 32px;
+  display: flex;
+  gap: 16px;
+  background: var(--card-bg);
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.04);
+  backdrop-filter: blur(10px);
+}
+
+.search-box input {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.15);
+  font-size: 16px;
+  background: #fff;
+  transition: all 0.3s ease;
+}
+
+.search-box input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.15);
+}
+
+.search-box button {
+  padding: 12px 28px;
+  border: none;
+  border-radius: 12px;
+  background: var(--primary-color);
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(10, 132, 255, 0.2);
+}
+
+.search-box button:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 15px rgba(10, 132, 255, 0.3);
+}
+
+/* ===== 卡片看板 ===== */
+.board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 24px;
+  max-width: 1200px;
+  margin: auto;
+}
+
+.card {
+  background: var(--card-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #1a2a3a;
+}
+
+.sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.money {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin: 12px 0;
+}
+
+/* ===== 狀態列 Timeline ===== */
+.timeline {
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+  position: relative;
+}
+
+.step {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  position: relative;
+  color: #a0aec0;
+}
+
+.step::before {
+  content: '';
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: 0 auto 8px;
+  border-radius: 50%;
+  background: #cbd5e0;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px #cbd5e0;
+  transition: all 0.3s ease;
+}
+
+.step::after {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 100%;
+  height: 3px;
+  background: #cbd5e0;
+  z-index: -1;
+  transition: all 0.3s ease;
+}
+
+.step:last-child::after {
+  display: none;
+}
+
+/* 狀態啟用樣式 */
+.step.done {
+  color: var(--primary-color);
+}
+.step.done::before {
+  background: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-color);
+}
+.step.done::after {
+  background: var(--primary-color);
+}
+
+.step.current {
+  color: var(--success-color);
+  font-weight: 700;
+}
+.step.current::before {
+  background: var(--success-color);
+  box-shadow: 0 0 0 2px var(--success-color);
+  transform: scale(1.2);
+}
+
+.step.exception {
+  color: var(--danger-color);
+  font-weight: 700;
+}
+.step.exception::before {
+  background: var(--danger-color);
+  box-shadow: 0 0 0 2px var(--danger-color);
+  transform: scale(1.2);
+}
+
+/* ===== 明細與收合按鈕 ===== */
+.details {
+  display: none;
+  margin-top: 14px;
+  font-size: 13px;
+  color: #4a5568;
+  border-top: 1px dashed rgba(0,0,0,0.1);
+  padding-top: 14px;
+  line-height: 1.6;
+}
+
+.toggle-btn {
+  margin-top: 12px;
+  background: transparent;
+  border: 1px solid rgba(10, 132, 255, 0.2);
+  border-radius: 8px;
+  color: var(--primary-color);
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  align-self: flex-start;
+}
+
+.toggle-btn:hover {
+  background: rgba(10, 132, 255, 0.05);
+  border-color: var(--primary-color);
+}
+
+/* ===== 結案清單 ===== */
+.archive {
+  max-width: 1200px;
+  margin: 48px auto 0;
+}
+
+.archive h3 {
+  cursor: pointer;
+  font-size: 18px;
+  color: #1a2a3a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+
+.archive table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card-bg);
+  backdrop-filter: blur(10px);
+  margin-top: 16px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.04);
+  display: none;
+}
+
+.archive th, .archive td {
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  padding: 16px;
+  font-size: 14px;
+  text-align: left;
+}
+
+.archive th {
+  background: rgba(0,0,0,0.02);
+  color: #4a5568;
+  font-weight: 700;
+}
+
+.archive tr:last-child td {
+  border-bottom: none;
+}
+
+/* Setup Assistant Overlay */
+.setup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 18, 30, 0.7);
+  backdrop-filter: blur(10px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.setup-card {
+  background: #fff;
+  padding: 36px;
+  border-radius: 24px;
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  text-align: center;
+}
+
+.setup-card h2 {
+  margin-top: 0;
+  color: #1a2a3a;
+  font-size: 22px;
+}
+
+.setup-card p {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.setup-input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-size: 14px;
+}
+
+.setup-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.setup-btn:hover {
+  background: var(--primary-hover);
+}
+
+@media (max-width: 768px) {
+  .search-box {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .search-box button {
+    width: 100%;
+  }
+  .archive table {
+    display: block;
+    overflow-x: auto;
+  }
 }
 </style>
 </head>
 
 <body>
 
-<h1>📦 公關品申請狀態看板</h1>
-<div class="nav-actions">
-  <button
-    class="apply-btn"
-    onclick="window.location.href='https://promotional-items-booking.zeabur.app/'"
-  >
-    ➕ 新增案件申請
-  </button>
+<h1>公關品資源管理系統</h1>
+<div class="subtitle">Public Relations Resource Management System - 看板</div>
+
+<!-- Supabase 連線設定小幫手 (僅在未填憑證時顯示) -->
+<div id="setupAssistant" class="setup-overlay" style="display:none;">
+  <div class="setup-card">
+    <h2>🔑 串接您的 Supabase 專案</h2>
+    <p>系統檢測到您尚未設定 Supabase 憑證。請輸入專案 URL 與 Anon Key 以進行資料庫連線：</p>
+    <input type="text" id="setupUrl" class="setup-input" placeholder="Supabase Project URL" />
+    <input type="text" id="setupKey" class="setup-input" placeholder="Supabase Anon Key" />
+    <button type="button" class="setup-btn" onclick="saveCredentials()">確認並儲存</button>
+  </div>
 </div>
+
+<div class="nav-actions">
+  <button class="apply-btn" onclick="goToApplyPage()">➕ 新增案件申請</button>
+</div>
+
 <div class="search-box">
-  <input id="staffInput" placeholder="輸入員編（6碼）查詢" />
+  <input id="staffInput" placeholder="輸入申請人員編查詢訂單" />
   <button onclick="loadData()">查詢</button>
 </div>
 
 <div class="board" id="activeBoard"></div>
+
 <div id="loadingHint" style="
   max-width:1200px;
   margin:40px auto;
   text-align:center;
-  color:#666;
+  color:var(--text-muted);
   font-size:16px;
+  font-weight: 500;
 ">
   ⏳ 資料載入中，請稍候…
 </div>
+
 <div class="archive">
-  <h3 onclick="toggleArchive()">▸ 結案清單（近半年）</h3>
+  <h3 onclick="toggleArchive()"><span id="archiveToggleIcon">▸</span> 結案清單（歷史紀錄）</h3>
   <table id="archiveTable">
     <thead>
       <tr>
         <th>訂單編號</th>
         <th>申請人</th>
         <th>部門</th>
-        <th>購買內容</th>
+        <th>申請內容</th>
         <th>總金額</th>
-        <th>結案日期</th>
+        <th>異動日期</th>
       </tr>
     </thead>
     <tbody id="archiveBody"></tbody>
@@ -160,12 +462,45 @@ h1 { text-align:center; margin-bottom:20px; }
 </div>
 
 <script>
+// =========================================================================
+// 1. Supabase 憑證設定與初始化
+// =========================================================================
+const DEFAULT_SUPABASE_URL = 'https://awqrpzgkndysizvwqfmy.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_6Km_NaLMwawXQD9lMH7aMw_AsQmjGU0';
+
+let supabaseUrl = localStorage.getItem('supabaseUrl') || DEFAULT_SUPABASE_URL;
+let supabaseKey = localStorage.getItem('supabaseKey') || DEFAULT_SUPABASE_ANON_KEY;
+
+// 檢查是否需要顯示設定小幫手
+if (supabaseUrl === 'YOUR_SUPABASE_URL' || supabaseKey === 'YOUR_SUPABASE_ANON_KEY' || !supabaseUrl || !supabaseKey) {
+    document.getElementById('setupAssistant').style.display = 'flex';
+}
+
+function saveCredentials() {
+    const url = document.getElementById('setupUrl').value.trim();
+    const key = document.getElementById('setupKey').value.trim();
+    if (!url || !key) {
+        alert('請確實填寫 URL 與 Key');
+        return;
+    }
+    localStorage.setItem('supabaseUrl', url);
+    localStorage.setItem('supabaseKey', key);
+    window.location.reload();
+}
+
+let supabaseClient = null;
+if (supabaseUrl && supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseKey && supabaseKey !== 'YOUR_SUPABASE_ANON_KEY') {
+    supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+}
+
+// =========================================================================
+// 2. 業務邏輯與畫面渲染
+// =========================================================================
 let ALL_DATA = [];
-const API_URL = 'https://chihwei-n8n.zeabur.app/webhook/items-status';
 
 /* ===== 時間格式統一 ===== */
 function fmtDateTime(v) {
-  if (!v) return '';
+  if (!v) return '-';
   const d = new Date(v);
   if (isNaN(d)) return v;
 
@@ -177,34 +512,32 @@ function fmtDateTime(v) {
   return `${y}-${m}-${day} ${h}:${min}`;
 }
 
-/* ===== 主要載入 ===== */
+/* ===== 載入資料 ===== */
 async function loadData(){
+  if (!supabaseClient) return;
 
   // 顯示 loading
   document.getElementById('loadingHint').style.display = 'block';
+  document.getElementById('loadingHint').textContent = '⏳ 資料載入中，請稍候…';
   document.getElementById('activeBoard').innerHTML = '';
   document.getElementById('archiveBody').innerHTML = '';
 
   try {
-    const res = await fetch(API_URL);
-    const data = await res.json();
+    // 直接從 Supabase 讀取 applications 加上對應的 application_items (明細)
+    const { data, error } = await supabaseClient
+      .from('applications')
+      .select('*, application_items(*)')
+      .order('created_at', { ascending: false });
 
-    // ✅ 統一資料來源
-    ALL_DATA = [
-      ...(data.active || []),
-      ...(data.archived || [])
-    ];
+    if (error) throw error;
 
-    // ✅ 只交給前端篩選（applyFilter 內部會做 status 分類）
+    ALL_DATA = data || [];
     applyFilter();
-
-    // 隱藏 loading
     document.getElementById('loadingHint').style.display = 'none';
 
   } catch (e) {
-    console.error('loadData failed', e);
-    document.getElementById('loadingHint').textContent =
-      '⚠️ 資料載入失敗，請稍後再試';
+    console.error('載入訂單失敗:', e);
+    document.getElementById('loadingHint').textContent = '⚠️ 資料載入失敗，請檢查網路或專案 SQL 初始化設定';
   }
 }
 
@@ -212,35 +545,46 @@ function renderActive(list){
   const box = document.getElementById('activeBoard');
   box.innerHTML = '';
 
-  list.forEach(o=>{
+  if (list.length === 0) {
+    box.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px 0; font-weight: 500;">
+        🔍 尚無進行中的申請案。
+      </div>
+    `;
+    return;
+  }
+
+  list.forEach(o => {
+    const statusUpper = String(o.status || '').toUpperCase();
     box.innerHTML += `
     <div class="card">
       <div class="title">${o.applicant_name}（${o.staff_id}）｜${o.department}</div>
       <div class="sub">訂單編號：${o.task_id}</div>
-      <div class="sub">申請日期：${fmtDateTime(o.apply_date)}</div>
-      <div class="money">總金額：NT$ ${o.total_amount}</div>
+      <div class="sub">申請日期：${fmtDateTime(o.created_at)}</div>
+      <div class="money">總金額：NT$ ${Number(o.total_amount).toLocaleString()}</div>
 
-<div class="timeline">
-  <div class="step done">申請提出</div>
+      <div class="timeline">
+        <div class="step done">申請提出</div>
 
-  <div class="step ${
-    o.status === 'PREPARING' ? 'current'
-    : ['ready','EXCEPTION','End'].includes(o.status) ? 'done' : ''
-  }">商品準備中</div>
+        <div class="step ${
+          statusUpper === 'PREPARING' ? 'current'
+          : ['READY', 'EXCEPTION', 'END'].includes(statusUpper) ? 'done' : ''
+        }">商品準備中</div>
 
-  <div class="step ${
-    o.status === 'ready' ? 'current'
-    : ['End'].includes(o.status) ? 'done' : ''
-  }">已通知領取</div>
+        <div class="step ${
+          statusUpper === 'READY' ? 'current'
+          : ['END'].includes(statusUpper) ? 'done' : ''
+        }">已通知領取</div>
 
-  <div class="step ${
-    o.status === 'EXCEPTION' ? 'exception current' : ''
-  }">異常通知</div>
-</div>
+        <div class="step ${
+          statusUpper === 'EXCEPTION' ? 'exception current' : ''
+        }">異常通知</div>
+      </div>
 
       <button class="toggle-btn" onclick="toggleDetails(this)">查看案件明細</button>
       <div class="details">
-        ${(o.items || []).map(i=>`${i.name} × ${i.qty}`).join('<br>')}
+        ${(o.application_items || []).map(i => `• ${i.item_name} × ${i.quantity}`).join('<br>')}
+        ${(statusUpper === 'EXCEPTION' && o.review_comment) ? `<br><strong style="color:var(--danger-color);">⚠️ 異常說明：${o.review_comment}</strong>` : ''}
       </div>
     </div>`;
   });
@@ -250,15 +594,24 @@ function renderArchive(list){
   const body = document.getElementById('archiveBody');
   body.innerHTML = '';
 
-  list.forEach(o=>{
+  if (list.length === 0) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:center; color: var(--text-muted); padding: 20px;">尚無結案紀錄。</td>
+      </tr>
+    `;
+    return;
+  }
+
+  list.forEach(o => {
     body.innerHTML += `
     <tr>
-      <td>${o.task_id}</td>
+      <td style="font-weight: 700; color: #1a2a3a;">${o.task_id}</td>
       <td>${o.applicant_name}（${o.staff_id}）</td>
       <td>${o.department}</td>
-      <td>${o.items.map(i=>`${i.name} × ${i.qty}`).join('<br>')}</td>
-      <td>NT$ ${o.total_amount}</td>
-      <td>${fmtDateTime(o.close_date || o.updated_at)}</td>
+      <td>${(o.application_items || []).map(i => `${i.item_name} × ${i.quantity}`).join('<br>')}</td>
+      <td style="font-weight: 600; color: var(--primary-color);">NT$ ${Number(o.total_amount).toLocaleString()}</td>
+      <td>${fmtDateTime(o.updated_at || o.created_at)}</td>
     </tr>`;
   });
 }
@@ -272,14 +625,16 @@ function toggleDetails(btn){
 
 function toggleArchive(){
   const t = document.getElementById('archiveTable');
-  t.style.display = t.style.display === 'table' ? 'none' : 'table';
+  const icon = document.getElementById('archiveToggleIcon');
+  const open = t.style.display === 'table';
+  t.style.display = open ? 'none' : 'table';
+  icon.textContent = open ? '▸' : '▾';
 }
 
-// 初始載入（可視需求拿掉）
-loadData();
-  function applyFilter() {
+function applyFilter() {
   const staff = document.getElementById('staffInput').value.trim();
 
+  // 若有輸入員編則篩選該員編
   const filtered = staff
     ? ALL_DATA.filter(o => String(o.staff_id).includes(staff))
     : ALL_DATA;
@@ -299,6 +654,17 @@ loadData();
   renderActive(activeList);
   renderArchive(archiveList);
 }
+
+function goToApplyPage() {
+    window.location.href = 'index.html';
+}
+
+// 頁面載入後自動載入資料
+document.addEventListener('DOMContentLoaded', () => {
+    if (supabaseClient) {
+        loadData();
+    }
+});
 </script>
 
 </body>
