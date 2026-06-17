@@ -935,15 +935,15 @@ async function exportCostCenterExcel() {
     worksheet.getRow(2).height = 198.75;
     worksheet.getRow(3).height = 18.0;
 
-    worksheet.getColumn('A').width = 9.25;
-    worksheet.getColumn('B').width = 11.25;
-    worksheet.getColumn('C').width = 7.38;
-    worksheet.getColumn('D').width = 7.25;
-    worksheet.getColumn('E').width = 47.38;
+    worksheet.getColumn('A').width = 12;    // 單位代號
+    worksheet.getColumn('B').width = 15;    // 申請單位
+    worksheet.getColumn('C').width = 16;    // 姓名
+    worksheet.getColumn('D').width = 16;    // 分機
+    worksheet.getColumn('E').width = 48;    // 領取事由
     for (let c = 6; c <= 5 + activeProds.length; c++) {
-      worksheet.getColumn(c).width = 5.5; // 直書商品欄位為窄欄
+      worksheet.getColumn(c).width = 10;    // 商品品項與價格欄寬，防止金額遮蔽
     }
-    worksheet.getColumn(totalCols).width = 12.75; // 總計欄位稍微寬一些
+    worksheet.getColumn(totalCols).width = 15; // 總計金額欄位
 
     // Row 1: 大標題列
     worksheet.mergeCells(`A1:${totalColLetter}1`);
