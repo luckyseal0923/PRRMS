@@ -358,7 +358,39 @@ input:focus, select:focus {
   </div>
 </div>
 
-<div id="adminView">
+<!-- 玻璃擬態登入與註冊介面 -->
+<div id="loginView" class="setup-overlay hidden">
+  <div class="setup-card" style="max-width: 400px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); background: rgba(255, 255, 255, 0.85); border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 24px; padding: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.15);">
+    <!-- 登入面板 -->
+    <div id="panel-signin">
+      <h2 style="margin-top:0; margin-bottom: 24px; font-weight: 800; font-size:22px; color:#0f172a;">🔐 管理員安全登入</h2>
+      <label style="font-size: 13px; font-weight: 700; display:block; margin-bottom: 6px; text-align: left; color:#475569;">管理員帳號</label>
+      <input type="text" id="loginUser" class="setup-input" placeholder="請輸入帳號" style="width:100%; padding:12px; margin-bottom:16px; border:1px solid #e2e8f0; border-radius:12px;" />
+      <label style="font-size: 13px; font-weight: 700; display:block; margin-bottom: 6px; text-align: left; color:#475569;">登入密碼</label>
+      <input type="password" id="loginPass" class="setup-input" placeholder="請輸入密碼" style="width:100%; padding:12px; margin-bottom:16px; border:1px solid #e2e8f0; border-radius:12px;" />
+      <button type="button" class="setup-btn" style="width:100%; padding:14px; background:var(--primary-gradient); color:#fff; border:none; border-radius:12px; font-size:16px; font-weight:700; cursor:pointer;" onclick="handleLogin()">登入系統</button>
+      <div style="margin-top: 20px; font-size: 13px; text-align: center; color:var(--text-muted);">
+        沒有帳號？ <a href="javascript:void(0)" onclick="toggleAuthPanel('signup')" style="color:var(--primary); font-weight: 700; text-decoration: none;">申請註冊帳號</a>
+      </div>
+    </div>
+    
+    <!-- 註冊面板 -->
+    <div id="panel-signup" class="hidden">
+      <h2 style="margin-top:0; margin-bottom: 12px; font-weight: 800; font-size:22px; color:#0f172a;">📝 申請註冊管理員</h2>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px; text-align: left; line-height: 1.5;">註冊後預設為「待審核」狀態，需聯繫已啟用的管理員為您開啟權限後方能登入。</p>
+      <label style="font-size: 13px; font-weight: 700; display:block; margin-bottom: 6px; text-align: left; color:#475569;">設定帳號名稱</label>
+      <input type="text" id="regUser" class="setup-input" placeholder="請輸入想要的帳號" style="width:100%; padding:12px; margin-bottom:16px; border:1px solid #e2e8f0; border-radius:12px;" />
+      <label style="font-size: 13px; font-weight: 700; display:block; margin-bottom: 6px; text-align: left; color:#475569;">設定密碼</label>
+      <input type="password" id="regPass" class="setup-input" placeholder="請輸入密碼" style="width:100%; padding:12px; margin-bottom:16px; border:1px solid #e2e8f0; border-radius:12px;" />
+      <button type="button" class="setup-btn" style="width:100%; padding:14px; background:var(--primary-gradient); color:#fff; border:none; border-radius:12px; font-size:16px; font-weight:700; cursor:pointer;" onclick="handleRegister()">送出註冊申請</button>
+      <div style="margin-top: 20px; font-size: 13px; text-align: center; color:var(--text-muted);">
+        已有帳號？ <a href="javascript:void(0)" onclick="toggleAuthPanel('signin')" style="color:var(--primary); font-weight: 700; text-decoration: none;">返回登入</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="adminView" class="hidden">
   <div class="sidebar">
     <h2 style="color:var(--primary-dark); margin-bottom:30px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">PRRMS 後台管理</h2>
     <div class="nav-item active" id="nav-orders" onclick="switchTab('orders')">📋 <span class="nav-text">訂單管理系統</span></div>
@@ -372,7 +404,7 @@ input:focus, select:focus {
       <a href="index.html" class="btn btn-outline quick-link">📝 訂單申請</a>
       <a href="Items-status.html" class="btn btn-outline quick-link">📊 狀態看板</a>
       <div style="margin-top:16px">
-        <button class="btn btn-outline" style="width:100%" onclick="alert('已登出')">安全登出</button>
+        <button class="btn btn-outline" style="width:100%" onclick="handleLogout()">安全登出</button>
       </div>
     </div>
   </div>
@@ -433,7 +465,27 @@ input:focus, select:focus {
     <!-- 帳號 -->
     <div id="tab-accounts" class="hidden">
       <h1>帳號管理</h1>
-      <div class="panel">（功能開發中，本機版可規劃 Supabase Auth 整合）</div>
+      <div id="accountsError" class="hidden" style="padding:14px; background:#FEE2E2; color:#991B1B; border-radius:10px; margin-bottom:16px">⚠️ 載入失敗，請檢查管理員權限</div>
+      <div class="panel">
+        <div style="color:var(--text-muted); font-size: 14px; margin-bottom: 20px;">
+          管理所有後台管理員帳號。新註冊的帳號必須經由已啟用的管理員在這裡點選「審核啟用」後才能進入系統。
+        </div>
+        <div class="table-wrapper">
+          <table style="width:100%">
+            <thead>
+              <tr>
+                <th>帳號名稱</th>
+                <th>申請時間</th>
+                <th>目前狀態</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="accountsTable">
+              <tr><td colspan="4" style="text-align:center; padding:30px">載入中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -544,6 +596,7 @@ function switchTab(tab) {
     if (tab === 'orders' && ALL_ORDERS.length === 0) loadOrders();
     if (tab === 'inventory') loadInventory();
     if (tab === 'listing') loadListing();
+    if (tab === 'accounts') loadAccounts();
   }
 }
 
@@ -1466,10 +1519,227 @@ function showBig(src) {
 function closeModal() { document.getElementById('orderModal').classList.remove('show'); }
 document.getElementById('orderModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 
-// 頁面載入自動初始化
+// =========================================================================
+// 4. 登入與權限驗證系統
+// =========================================================================
+let LOGGED_IN_USER = '';
+
+// 切換登入/註冊面板
+function toggleAuthPanel(type) {
+  if (type === 'signup') {
+    document.getElementById('panel-signin').classList.add('hidden');
+    document.getElementById('panel-signup').classList.remove('hidden');
+  } else {
+    document.getElementById('panel-signup').classList.add('hidden');
+    document.getElementById('panel-signin').classList.remove('hidden');
+  }
+}
+
+// 處理登入
+async function handleLogin() {
+  if (!supabaseClient) return;
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value.trim();
+  
+  if (!user || !pass) {
+    alert('請填寫帳號與密碼');
+    return;
+  }
+  
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '驗證中...';
+  
+  try {
+    const { data: code, error } = await supabaseClient.rpc('verify_admin_login', {
+      p_username: user,
+      p_password: pass
+    });
+    
+    if (error) throw error;
+    
+    if (code === 1) {
+      // 登入成功
+      sessionStorage.setItem('admin_session', 'authenticated');
+      sessionStorage.setItem('admin_username', user);
+      LOGGED_IN_USER = user;
+      
+      document.getElementById('loginView').classList.add('hidden');
+      document.getElementById('adminView').classList.remove('hidden');
+      
+      loadOrders();
+    } else if (code === 2) {
+      alert('⏳ 您的帳號審核中，尚未啟用，請聯繫已啟用的管理員審核！');
+    } else {
+      alert('❌ 登入失敗：帳號或密碼錯誤！');
+    }
+  } catch (e) {
+    alert('登入出錯：' + e.message);
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '登入系統';
+  }
+}
+
+// 處理註冊申請
+async function handleRegister() {
+  if (!supabaseClient) return;
+  const user = document.getElementById('regUser').value.trim();
+  const pass = document.getElementById('regPass').value.trim();
+  
+  if (!user || !pass) {
+    alert('請填寫帳號與密碼');
+    return;
+  }
+  
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '送出中...';
+  
+  try {
+    const { data: code, error } = await supabaseClient.rpc('register_admin_account', {
+      p_username: user,
+      p_password: pass
+    });
+    
+    if (error) throw error;
+    
+    if (code === 1) {
+      alert('🎉 註冊申請已送出！預設狀態為「待審核」，請聯繫系統管理員啟用帳號。');
+      document.getElementById('regUser').value = '';
+      document.getElementById('regPass').value = '';
+      toggleAuthPanel('signin');
+    } else {
+      alert('❌ 註冊失敗：此帳號已存在，請使用其他名稱！');
+    }
+  } catch (e) {
+    alert('註冊出錯：' + e.message);
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '送出註冊申請';
+  }
+}
+
+// 安全登出
+function handleLogout() {
+  sessionStorage.removeItem('admin_session');
+  sessionStorage.removeItem('admin_username');
+  window.location.reload();
+}
+
+// =========================================================================
+// 5. 帳號管理控制邏輯
+// =========================================================================
+async function loadAccounts() {
+  const tb = document.getElementById('accountsTable');
+  if (!supabaseClient) return;
+  
+  try {
+    const { data, error } = await supabaseClient.rpc('get_admin_accounts');
+    if (error) throw error;
+    
+    renderAccounts(data || []);
+  } catch (e) {
+    console.error(e);
+    document.getElementById('accountsError').classList.remove('hidden');
+    tb.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px">載入帳號失敗，請檢查權限</td></tr>';
+  }
+}
+
+function renderAccounts(list) {
+  const tb = document.getElementById('accountsTable');
+  if (list.length === 0) {
+    tb.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px">無資料</td></tr>';
+    return;
+  }
+  
+  tb.innerHTML = list.map(a => {
+    const isActive = a.is_active;
+    const isSelf = a.username === LOGGED_IN_USER;
+    const isAdminDefault = a.username === 'admin';
+    
+    let actionHtml = '';
+    if (isSelf) {
+      actionHtml = '<span style="color:#666; font-size:13px; font-weight:bold;">登入中 (無法操作)</span>';
+    } else {
+      const toggleText = isActive ? '🔒 停用' : '✔️ 審核啟用';
+      const toggleClass = isActive ? 'btn-outline' : 'btn-success';
+      actionHtml = `
+        <button class="btn ${toggleClass}" onclick="toggleAccountActive('${a.username}', ${!isActive})">${toggleText}</button>
+        ${!isAdminDefault ? `<button class="btn btn-danger" onclick="deleteAccount('${a.username}')">🗑️ 刪除</button>` : ''}
+      `;
+    }
+    
+    return `<tr>
+      <td style="font-weight:bold;">${a.username}</td>
+      <td>${formatDateTime(a.created_at)}</td>
+      <td>
+        <span class="status-pill ${isActive ? 'status-ready' : 'status-submitted'}">
+          ${isActive ? '已啟用' : '待審核'}
+        </span>
+      </td>
+      <td>
+        <div style="display:flex; gap:8px; align-items:center;">
+          ${actionHtml}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function toggleAccountActive(user, targetStatus) {
+  if (!supabaseClient) return;
+  const ok = confirm(`確定要將帳號 "${user}" ${targetStatus ? '核准啟用' : '停用'} 嗎？`);
+  if (!ok) return;
+  
+  try {
+    const { error } = await supabaseClient.rpc('update_admin_status', {
+      p_username: user,
+      p_is_active: targetStatus
+    });
+    if (error) throw error;
+    
+    alert('✅ 帳號狀態已更新');
+    loadAccounts();
+  } catch (e) {
+    alert('更新帳號狀態失敗：' + e.message);
+  }
+}
+
+async function deleteAccount(user) {
+  if (!supabaseClient) return;
+  const ok = confirm(`⚠️ 確定要永久刪除帳號 "${user}" 嗎？此動作無法復原！`);
+  if (!ok) return;
+  
+  try {
+    const { error } = await supabaseClient.rpc('delete_admin_account', {
+      p_username: user
+    });
+    if (error) throw error;
+    
+    alert('🗑️ 帳號已刪除');
+    loadAccounts();
+  } catch (e) {
+    alert('刪除帳號失敗：' + e.message);
+  }
+}
+
+// 頁面載入自動初始化與登入狀態驗證
 window.onload = function() {
   if (supabaseClient) {
-    loadOrders();
+    const session = sessionStorage.getItem('admin_session');
+    const user = sessionStorage.getItem('admin_username');
+    if (session === 'authenticated' && user) {
+      LOGGED_IN_USER = user;
+      document.getElementById('loginView').classList.add('hidden');
+      document.getElementById('adminView').classList.remove('hidden');
+      loadOrders();
+    } else {
+      document.getElementById('loginView').classList.remove('hidden');
+      document.getElementById('adminView').classList.add('hidden');
+    }
   }
 };
 </script>
