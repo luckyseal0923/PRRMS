@@ -4,142 +4,171 @@
 <meta charset="UTF-8" />
 <title>公關品資源管理系統 (PRRMS)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<!-- 引入 Google Fonts -->
+<!-- 引入 Google Fonts: Plus Jakarta Sans & Noto Sans TC -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
 <!-- 引入 Supabase JS SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 :root {
-  --primary-color: #0A84FF;
-  --primary-hover: #006edc;
-  --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  --card-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.4);
-  --text-main: #2c3e50;
-  --text-muted: #7f8c8d;
-  --danger-color: #ff3b30;
-  --danger-bg: rgba(255, 59, 48, 0.1);
-  --success-color: #34c759;
+  --primary-color: #6366F1;
+  --primary-hover: #4F46E5;
+  --primary-gradient: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+  --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  --card-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --danger-color: #ef4444;
+  --danger-gradient: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  --success-color: #10b981;
 }
 
 body {
-  font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
   background: var(--bg-gradient);
   background-attachment: fixed;
   color: var(--text-main);
-  padding: 40px 20px;
+  padding: 60px 20px;
   margin: 0;
   min-height: 100vh;
 }
 
+/* 網頁背景發光球 */
+body::before, body::after {
+  content: "";
+  position: fixed;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  z-index: -1;
+  filter: blur(90px);
+  opacity: 0.45;
+  pointer-events: none;
+}
+body::before {
+  background: rgba(99, 102, 241, 0.3); /* indigo */
+  top: 8%;
+  left: 8%;
+}
+body::after {
+  background: rgba(16, 185, 129, 0.2); /* emerald */
+  bottom: 12%;
+  right: 8%;
+}
+
 h1 {
   text-align: center;
-  margin-bottom: 8px;
-  font-weight: 700;
-  font-size: 32px;
-  color: #1a2a3a;
+  margin-bottom: 6px;
+  font-weight: 900;
+  font-size: 36px;
+  color: #0f172a;
+  letter-spacing: -0.5px;
 }
 
 .subtitle {
   text-align: center;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-muted);
-  margin-bottom: 40px;
-  font-weight: 500;
+  margin-bottom: 50px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 2.5px;
 }
 
 form {
   background: var(--card-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  max-width: 1200px;
+  max-width: 1100px;
   margin: auto;
-  padding: 40px;
-  border-radius: 24px;
+  padding: 48px;
+  border-radius: 28px;
   border: 1px solid var(--glass-border);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 20px 50px rgba(31, 38, 135, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 fieldset {
   border: none;
-  margin-bottom: 40px;
+  margin-bottom: 44px;
   padding: 0;
 }
 
 legend {
-  font-weight: 700;
-  margin-bottom: 24px;
+  font-weight: 800;
+  margin-bottom: 28px;
   font-size: 20px;
-  color: #1a2a3a;
-  border-left: 5px solid var(--primary-color);
+  color: #0f172a;
+  border-left: 6px solid var(--primary-color);
   padding-left: 14px;
+  letter-spacing: 0.5px;
 }
 
 .row {
   display: flex;
   gap: 24px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 label {
   flex: 1;
   font-size: 14px;
-  font-weight: 600;
-  color: #34495e;
+  font-weight: 700;
+  color: #334155;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 input[type="text"],
 input[type="email"] {
   width: 100%;
-  padding: 12px 16px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 12px;
-  font-size: 16px;
-  background: rgba(255, 255, 255, 0.8);
+  padding: 14px 18px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
+  font-size: 15px;
+  background: rgba(255, 255, 255, 0.7);
   box-sizing: border-box;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  color: #0f172a;
+  font-weight: 500;
 }
 
 input[type="text"]:focus,
 input[type="email"]:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.15);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
   background: #fff;
+  transform: translateY(-1px);
 }
 
 /* Card Grid Layout */
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 24px;
+  gap: 28px;
 }
 
 /* Premium Product Card */
 .product-card {
   position: relative;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 24px;
   overflow: hidden;
-  box-shadow: 0 8px 30px rgba(31, 38, 135, 0.04);
-  transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 0.4s ease, border-color 0.3s;
+  box-shadow: 0 10px 30px rgba(31, 38, 135, 0.03), 0 1px 3px rgba(0,0,0,0.02);
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
   display: flex;
   flex-direction: column;
 }
 
 .product-card:hover {
   transform: translateY(-8px);
-  box-shadow: 0 16px 40px rgba(31, 38, 135, 0.08);
-  border-color: rgba(10, 132, 255, 0.3);
+  box-shadow: 0 20px 40px rgba(31, 38, 135, 0.08);
+  border-color: rgba(99, 102, 241, 0.25);
 }
 
 /* Low Stock Badge */
@@ -149,22 +178,23 @@ input[type="email"]:focus {
   right: 14px;
   padding: 6px 12px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   border-radius: 20px;
   z-index: 10;
+  letter-spacing: 0.5px;
 }
 
 .badge.low-stock {
-  background: var(--danger-color);
+  background: var(--danger-gradient);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.35);
 }
 
 /* Card Image */
 .card-image-wrapper {
   width: 100%;
-  height: 180px;
-  background: #eaedf1;
+  height: 190px;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -177,7 +207,7 @@ input[type="email"]:focus {
   height: 100%;
   object-fit: cover;
   cursor: pointer;
-  transition: transform 0.5s ease;
+  transition: transform 0.6s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
 .card-image:hover {
@@ -187,12 +217,12 @@ input[type="email"]:focus {
 .no-image {
   color: var(--text-muted);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* Card Info */
 .card-info {
-  padding: 20px;
+  padding: 22px;
   display: flex;
   flex-direction: column;
   flex-grow: 1;
@@ -201,9 +231,9 @@ input[type="email"]:focus {
 .card-title {
   margin: 0 0 12px 0;
   font-size: 16px;
-  font-weight: 700;
-  color: #1a2a3a;
-  line-height: 1.4;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.45;
 }
 
 .card-price-row {
@@ -216,23 +246,25 @@ input[type="email"]:focus {
 .price-label {
   font-size: 12px;
   color: var(--text-muted);
+  font-weight: 500;
 }
 
 .price-value {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--primary-color);
 }
 
 .card-stock-row {
   font-size: 13px;
-  color: #4f5f6f;
-  margin-bottom: 20px;
+  color: #475569;
+  margin-bottom: 22px;
+  font-weight: 500;
 }
 
 .card-stock-row.low {
   color: var(--danger-color);
-  font-weight: 700;
+  font-weight: 800;
 }
 
 /* Counter Widget */
@@ -241,9 +273,10 @@ input[type="email"]:focus {
   align-items: center;
   justify-content: space-between;
   margin-top: auto;
-  background: #f1f3f5;
+  background: #f1f5f9;
   border-radius: 30px;
-  padding: 4px;
+  padding: 5px;
+  border: 1px solid rgba(0,0,0,0.02);
 }
 
 .qty-btn {
@@ -251,25 +284,27 @@ input[type="email"]:focus {
   height: 36px;
   border: none;
   background: #fff;
-  color: #1a2a3a;
+  color: #0f172a;
   border-radius: 50%;
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .qty-btn:hover {
-  background: #e9ecef;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  background: #fff;
+  color: var(--primary-color);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
 }
 
 .qty-btn:active {
-  transform: scale(0.9);
+  transform: scale(0.92);
 }
 
 .qty-input {
@@ -277,9 +312,10 @@ input[type="email"]:focus {
   border: none;
   background: transparent;
   text-align: center;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 16px;
-  font-weight: 700;
-  color: #1a2a3a;
+  font-weight: 800;
+  color: #0f172a;
   margin: 0;
   padding: 0;
 }
@@ -295,41 +331,44 @@ input[type="email"]:focus {
 }
 
 .total-box {
-  margin-top: 24px;
+  margin-top: 32px;
   text-align: right;
-  font-size: 24px;
-  font-weight: 700;
-  color: #1a2a3a;
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.5px;
 }
 
 .total-box span {
   color: var(--primary-color);
+  background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .submit-area {
   display: flex;
   justify-content: center;
   gap: 24px;
-  margin-top: 40px;
+  margin-top: 48px;
 }
 
 button[type="submit"] {
   padding: 16px 48px;
   font-size: 18px;
-  font-weight: 600;
-  background: var(--primary-color);
+  font-weight: 700;
+  background: var(--primary-gradient);
   color: #fff;
   border: none;
-  border-radius: 14px;
+  border-radius: 16px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 6px 20px rgba(10, 132, 255, 0.25);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.35);
 }
 
 button[type="submit"]:hover {
-  background: var(--primary-hover);
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(10, 132, 255, 0.35);
+  box-shadow: 0 12px 30px rgba(99, 102, 241, 0.45);
 }
 
 button[type="submit"]:active {
@@ -339,18 +378,20 @@ button[type="submit"]:active {
 button.status-btn {
   padding: 16px 40px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   background: #fff;
-  color: #4a5a6a;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 14px;
+  color: #475569;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
   cursor: pointer;
   transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
 }
 
 button.status-btn:hover {
-  background: #f1f3f5;
+  background: #f8fafc;
   color: var(--primary-color);
+  border-color: rgba(99, 102, 241, 0.3);
 }
 
 /* Lightbox Modal */
@@ -358,19 +399,20 @@ button.status-btn:hover {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(10, 18, 30, 0.85);
+  background: rgba(15, 23, 42, 0.85);
   z-index: 9999;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .modal img {
   max-width: 85%;
   max-height: 85%;
-  border-radius: 16px;
-  box-shadow: 0 12px 50px rgba(0,0,0,0.5);
-  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.1);
   background: #fff;
 }
 
@@ -393,8 +435,8 @@ button.status-btn:hover {
 .setup-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 18, 30, 0.7);
-  backdrop-filter: blur(10px);
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(12px);
   z-index: 10000;
   display: flex;
   align-items: center;
@@ -403,18 +445,19 @@ button.status-btn:hover {
 
 .setup-card {
   background: #fff;
-  padding: 36px;
+  padding: 40px;
   border-radius: 24px;
   max-width: 450px;
   width: 90%;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
   text-align: center;
 }
 
 .setup-card h2 {
   margin-top: 0;
-  color: #1a2a3a;
+  color: #0f172a;
   font-size: 22px;
+  font-weight: 800;
 }
 
 .setup-card p {
@@ -426,35 +469,35 @@ button.status-btn:hover {
 
 .setup-input {
   width: 100%;
-  padding: 12px;
+  padding: 14px;
   margin-bottom: 16px;
-  border: 1px solid #ced4da;
-  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   box-sizing: border-box;
   font-size: 14px;
 }
 
 .setup-btn {
   width: 100%;
-  padding: 12px;
-  background: var(--primary-color);
+  padding: 14px;
+  background: var(--primary-gradient);
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 16px;
-  font-weight: bold;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: opacity 0.2s;
 }
 
 .setup-btn:hover {
-  background: var(--primary-hover);
+  opacity: 0.9;
 }
 
 @media (max-width: 768px) {
   form {
     padding: 24px;
-    border-radius: 16px;
+    border-radius: 20px;
   }
   .row {
     flex-direction: column;
@@ -508,7 +551,7 @@ button.status-btn:hover {
   </div>
 
   <div class="row">
-    <label>領取事由*<input type="text" name="reason" required placeholder="請描述公關品领用用途或對象"></label>
+    <label>領取事由*<input type="text" name="reason" required placeholder="請描述公關品領用用途或對象"></label>
   </div>
 </fieldset>
 

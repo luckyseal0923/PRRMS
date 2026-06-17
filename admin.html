@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>公關品資源管理系統 (PRRMS) - 後台管理</title>
-<!-- 引入 Google Fonts -->
+<!-- 引入 Google Fonts: Plus Jakarta Sans & Noto Sans TC -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
 <!-- 引入 Supabase JS SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -15,8 +15,9 @@
 :root {
   --primary: #10B981;
   --primary-dark: #059669;
+  --primary-gradient: linear-gradient(135deg, #10B981 0%, #059669 100%);
   --bg: #F8FAFC;
-  --text: #334155;
+  --text: #1E293B;
   --text-muted: #64748B;
   --border: #E2E8F0;
   --danger: #EF4444;
@@ -25,76 +26,96 @@
 body, html {
   margin: 0;
   height: 100%;
-  font-family: 'Inter', 'Noto Sans TC', "PingFang TC", sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;
   background: var(--bg);
   color: var(--text);
+  background-image: radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.06) 0%, transparent 40%);
 }
 
 .hidden { display: none !important; }
 
+/* 圓角浮動式 Sidebar */
 .sidebar {
-  width: 260px;
-  background: #fff;
-  height: 100vh;
+  width: 270px;
+  background: #ffffff;
+  height: calc(100vh - 40px);
   position: fixed;
-  padding: 24px;
-  border-right: 1px solid var(--border);
+  top: 20px;
+  left: 20px;
+  border-radius: 24px;
+  padding: 32px 24px;
+  border: 1px solid rgba(0,0,0,0.02);
   box-sizing: border-box;
   z-index: 100;
+  box-shadow: 0 10px 30px rgba(31, 38, 135, 0.03);
+  display: flex;
+  flex-direction: column;
 }
 
 .main-content {
-  margin-left: 260px;
-  padding: 30px;
+  margin-left: 310px;
+  padding: 40px;
 }
 
 @media (max-width: 900px) {
-  .sidebar { width: 70px; padding: 15px 5px; text-align: center; }
+  .sidebar { width: 70px; padding: 20px 5px; text-align: center; height: calc(100vh - 20px); top: 10px; left: 10px; }
   .sidebar h2, .sidebar .nav-text, .sidebar .quick-link-section { display: none !important; }
-  .main-content { margin-left: 70px; padding: 15px; }
+  .main-content { margin-left: 100px; padding: 20px; }
 }
 
 .nav-item {
   padding: 14px 18px;
-  border-radius: 10px;
+  border-radius: 14px;
   margin-bottom: 8px;
   cursor: pointer;
   color: #64748B;
   display: flex;
   align-items: center;
   gap: 12px;
-  transition: 0.2s;
-  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  font-weight: 700;
+  font-size: 14px;
 }
 
 .nav-item.active {
-  background: var(--primary);
+  background: var(--primary-gradient);
   color: #fff;
   font-weight: bold;
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.25);
+  transform: translateX(4px);
+}
+
+.nav-item:hover:not(.active) {
+  background: #f1f5f9;
+  color: #0f172a;
+  transform: translateX(2px);
 }
 
 .panel {
   background: #fff;
-  border-radius: 12px;
-  padding: 24px;
-  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 32px;
+  border: 1px solid rgba(0,0,0,0.02);
   margin-bottom: 24px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 10px 30px rgba(31, 38, 135, 0.02);
 }
 
 h1 {
-  font-size: 22px;
-  border-left: 5px solid var(--primary);
+  font-size: 24px;
+  font-weight: 800;
+  border-left: 6px solid var(--primary);
   padding-left: 14px;
-  margin-bottom: 24px;
-  color: #0F172A;
+  margin-bottom: 28px;
+  color: #0f172a;
+  letter-spacing: -0.5px;
 }
 
+/* 現代化帶有浮動間隔的表格 */
 table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 8px;
   min-width: 620px;
-  table-layout: fixed;
 }
 
 th, td {
@@ -104,120 +125,163 @@ th, td {
 
 th {
   text-align: left;
-  padding: 12px;
-  background: #F8FAFC;
-  border-bottom: 2px solid var(--border);
+  padding: 12px 16px;
+  background: transparent;
   font-size: 13px;
   color: var(--text-muted);
-  font-weight: 600;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 td {
-  padding: 16px 12px;
-  border-bottom: 1px solid var(--border);
+  padding: 18px 16px;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+  border-bottom: 1px solid #f1f5f9;
   font-size: 14px;
+  transition: background 0.2s;
+}
+
+td:first-child {
+  border-left: 1px solid #f1f5f9;
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+td:last-child {
+  border-right: 1px solid #f1f5f9;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+tbody tr {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+tbody tr:hover {
+  transform: translateY(-2px);
+}
+
+tbody tr:hover td {
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(31, 38, 135, 0.04);
+  border-color: #e2e8f0;
 }
 
 .table-wrapper { overflow-x: auto; }
 
 .btn {
-  padding: 10px 16px;
-  border-radius: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
   border: none;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-.btn-primary { background: var(--primary); color: #fff; }
-.btn-primary:hover { background: var(--primary-dark); }
+.btn-primary { background: var(--primary-gradient); color: #fff; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3); }
 .btn-success { background: #10B981; color: #fff; }
 .btn-success:hover { background: #059669; }
 .btn-danger { background: var(--danger); color: #fff; }
-.btn-danger:hover { background: #dc2626; }
 .btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text); }
-.btn-outline:hover { background: #f8fafc; }
+.btn-outline:hover { background: #f8fafc; border-color: #cbd5e1; }
 
 .status-pill {
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 5px 12px;
+  border-radius: 8px;
   font-size: 12px;
   font-weight: bold;
 }
 
-.status-preparing { background: #DBEAFE; color: #1E40AF; }
-.status-submitted { background: #FEF3C7; color: #92400E; }
-.status-ready { background: #D1FAE5; color: #065F46; }
-.status-exception { background: #FEE2E2; color: #991B1B; }
-.status-end { background: #E5E7EB; color: #374151; }
+.status-preparing { background: #E0F2FE; color: #0369A1; }
+.status-submitted { background: #FEF3C7; color: #B45309; }
+.status-ready { background: #D1FAE5; color: #047857; }
+.status-exception { background: #FEE2E2; color: #B91C1C; }
+.status-end { background: #F1F5F9; color: #475569; }
 
 input, select {
-  padding: 12px;
+  padding: 12px 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 12px;
   outline: none;
   box-sizing: border-box;
   font-size: 14px;
+  background: #f8fafc;
+  transition: all 0.2s;
 }
 
 input:focus, select:focus {
   border-color: var(--primary);
+  background: #fff;
 }
 
+/* Modal 動態效果 */
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(15, 23, 42, 0.4);
   display: none;
   align-items: center;
   justify-content: center;
   z-index: 5000;
   padding: 15px;
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .modal.show { display: flex; }
 
 .modal-body {
   background: #fff;
-  padding: 30px;
-  border-radius: 16px;
+  padding: 36px;
+  border-radius: 24px;
   width: 100%;
   max-width: 550px;
-  max-height: 90vh;
+  max-height: 85vh;
   overflow-y: auto;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+  box-shadow: 0 25px 60px rgba(0,0,0,0.15);
+  border: 1px solid rgba(0,0,0,0.02);
+  transform: scale(0.95);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal.show .modal-body {
+  transform: scale(1);
+  opacity: 1;
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
-  padding: 10px 0;
+  padding: 12px 0;
   border-bottom: 1px dashed #E2E8F0;
 }
 
-.info-label { color: var(--text-muted); font-size: 14px; }
-.info-value { font-weight: 600; font-size: 14px; }
+.info-label { color: var(--text-muted); font-size: 14px; font-weight: 500; }
+.info-value { font-weight: 700; font-size: 14px; color: #0f172a; }
 
 .quick-link {
   width: 100%;
   justify-content: flex-start;
-  padding: 8px 14px;
+  padding: 10px 16px;
   font-size: 14px;
-  border-radius: 10px;
-  margin-bottom: 6px;
+  border-radius: 12px;
+  margin-bottom: 8px;
 }
 
 /* Setup Assistant Overlay */
 .setup-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 18, 30, 0.7);
-  backdrop-filter: blur(10px);
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(12px);
   z-index: 10000;
   display: flex;
   align-items: center;
@@ -226,17 +290,18 @@ input:focus, select:focus {
 
 .setup-card {
   background: #fff;
-  padding: 36px;
+  padding: 40px;
   border-radius: 24px;
   max-width: 480px;
   width: 90%;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
 }
 
 .setup-card h2 {
   margin-top: 0;
-  color: #1a2a3a;
+  color: #0f172a;
   font-size: 22px;
+  font-weight: 800;
   text-align: center;
 }
 
@@ -249,29 +314,29 @@ input:focus, select:focus {
 
 .setup-input {
   width: 100%;
-  padding: 12px;
+  padding: 12px 16px;
   margin-bottom: 16px;
-  border: 1px solid #ced4da;
-  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   box-sizing: border-box;
   font-size: 14px;
 }
 
 .setup-btn {
   width: 100%;
-  padding: 12px;
-  background: var(--primary);
+  padding: 14px;
+  background: var(--primary-gradient);
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 16px;
-  font-weight: bold;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: opacity 0.2s;
 }
 
 .setup-btn:hover {
-  background: var(--primary-dark);
+  opacity: 0.9;
 }
 </style>
 </head>
@@ -282,11 +347,11 @@ input:focus, select:focus {
   <div class="setup-card">
     <h2>🔑 串接您的 Supabase 與 n8n</h2>
     <p>後台管理系統需要設定 Supabase 與信件發送 Webhook 憑證：</p>
-    <label style="font-size: 13px; font-weight: 600;">Supabase Project URL</label>
+    <label style="font-size: 13px; font-weight: 700; display:block; margin-bottom: 6px;">Supabase Project URL</label>
     <input type="text" id="setupUrl" class="setup-input" placeholder="https://xxxx.supabase.co" />
-    <label style="font-size: 13px; font-weight: 600;">Supabase Anon Key</label>
+    <label style="font-size: 13px; font-weight: 700; display:block; margin-bottom: 6px;">Supabase Anon Key</label>
     <input type="text" id="setupKey" class="setup-input" placeholder="Supabase Anon Key" />
-    <label style="font-size: 13px; font-weight: 600;">n8n 信件通知 Webhook URL (選填)</label>
+    <label style="font-size: 13px; font-weight: 700; display:block; margin-bottom: 6px;">n8n 信件通知 Webhook URL (選填)</label>
     <input type="text" id="setupMailWebhook" class="setup-input" placeholder="https://xxxx.zeabur.app/webhook/update-order" />
     <button type="button" class="setup-btn" onclick="saveCredentials()">儲存設定</button>
   </div>
@@ -294,15 +359,15 @@ input:focus, select:focus {
 
 <div id="adminView">
   <div class="sidebar">
-    <h2 style="color:var(--primary-dark); margin-bottom:30px; font-size: 20px;">PRRMS 資源管理</h2>
+    <h2 style="color:var(--primary-dark); margin-bottom:30px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">PRRMS 後台管理</h2>
     <div class="nav-item active" id="nav-orders" onclick="switchTab('orders')">📋 <span class="nav-text">訂單管理系統</span></div>
     <div class="nav-item" id="nav-inventory" onclick="switchTab('inventory')">⚖️ <span class="nav-text">庫存盤點</span></div>
     <div class="nav-item" id="nav-listing" onclick="switchTab('listing')">🚀 <span class="nav-text">商品管理</span></div>
     <div class="nav-item" id="nav-accounts" onclick="switchTab('accounts')">👥 <span class="nav-text">帳號管理</span></div>
     
     <!-- Sidebar 底部快速連結 -->
-    <div class="quick-link-section" style="margin-top:40px; border-top:1px solid #e5e7eb; padding-top:20px">
-      <div style="font-size:13px; color:#64748B; margin-bottom:10px">🔗 快速連結</div>
+    <div class="quick-link-section" style="margin-top:auto; border-top:1px solid #e2e8f0; padding-top:20px">
+      <div style="font-size:12px; color:#94a3b8; margin-bottom:10px; font-weight: 700; text-transform: uppercase;">快速連結</div>
       <a href="index.html" class="btn btn-outline quick-link">📝 訂單申請</a>
       <a href="Items-status.html" class="btn btn-outline quick-link">📊 狀態看板</a>
       <div style="margin-top:16px">
@@ -808,7 +873,7 @@ async function loadInventory() {
 
 function renderInventory(items) {
   const panel = document.querySelector('#tab-inventory .panel');
-  let html = '<table style="width:100%"><thead><tr><th>圖</th><th>品品</th><th>庫存</th><th>操作</th></tr></thead><tbody>';
+  let html = '<table style="width:100%"><thead><tr><th>圖</th><th>品名</th><th>庫存</th><th>操作</th></tr></thead><tbody>';
   items.forEach(item => {
     const imgHtml = item.image 
       ? `<img src="${item.image}" style="height:40px; cursor:pointer; object-fit:cover; border-radius:4px;" onclick="showBig('${item.image}')" title="點擊放大">` 
