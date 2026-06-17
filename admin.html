@@ -1032,18 +1032,34 @@ async function exportCostCenterExcel() {
         qtyCell.alignment = { horizontal: 'center', vertical: 'middle' };
       });
 
-      // 總計公式 (與範本相同：F3*F4+G3*G4...，並使用紅色粗體字呈現)
+      // 總計公式與預算結果 (與範本相同：F3*F4+G3*G4...，並使用紅色粗體字呈現)
       const formulaParts = [];
+      let rowTotal = 0;
       activeProds.forEach((p, idx) => {
         const colLetter = getColLetter(6 + idx);
         formulaParts.push(`$${colLetter}$3*${colLetter}${currentRow}`);
+        
+        // 預算數值
+        const item = (o.items || []).find(it => it.item_id === p.item_id);
+        const qty = item && item.qty > 0 ? Number(item.qty) : 0;
+        rowTotal += Number(p.price) * qty;
       });
       const totalCell = worksheet.getCell(`${totalColLetter}${currentRow}`);
-      totalCell.value = { formula: formulaParts.join('+') };
+      totalCell.value = { formula: formulaParts.join('+'), result: rowTotal };
       totalCell.alignment = { horizontal: 'right', vertical: 'middle' };
       totalCell.font = { name: '微軟正黑體', size: 14, bold: true, color: { argb: 'FFFF0000' } };
 
       currentRow++;
+    });
+
+    // 計算整個月的總金額 (Grand Total)
+    let grandTotal = 0;
+    orders.forEach(ord => {
+      activeProds.forEach(p => {
+        const item = (ord.items || []).find(it => it.item_id === p.item_id);
+        const qty = item && item.qty > 0 ? Number(item.qty) : 0;
+        grandTotal += Number(p.price) * qty;
+      });
     });
 
     // 底部總計列 (Row 25)
@@ -1060,7 +1076,7 @@ async function exportCostCenterExcel() {
     // F25:AJ25 總計值
     worksheet.mergeCells(`F${totalRowIndex}:${totalColLetter}${totalRowIndex}`);
     const sumValCell = worksheet.getCell(`F${totalRowIndex}`);
-    sumValCell.value = { formula: `SUM(${totalColLetter}4:${totalColLetter}${totalRowIndex - 1})` };
+    sumValCell.value = { formula: `SUM(${totalColLetter}4:${totalColLetter}${totalRowIndex - 1})`, result: grandTotal };
     sumValCell.alignment = { horizontal: 'center', vertical: 'middle' };
     sumValCell.font = { name: '微軟正黑體', size: 14, bold: true };
 
