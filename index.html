@@ -79,6 +79,7 @@ h1 {
 }
 
 form {
+  position: relative; /* 啟用相對定位以支援內部右上角導覽按鈕 */
   background: var(--card-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -375,35 +376,14 @@ button[type="submit"]:active {
   transform: translateY(0);
 }
 
-/* Navigation Header Style */
-.nav-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  max-width: 1100px;
-  margin: 0 auto 30px;
-  padding: 14px 28px;
-  background: var(--card-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 18px;
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-}
-
-.nav-logo {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--text-main);
-  letter-spacing: -0.5px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.nav-menu {
+/* Form Navigation Style (右上角懸浮) */
+.form-nav {
+  position: absolute;
+  top: 48px;
+  right: 48px;
   display: flex;
   gap: 12px;
+  z-index: 100;
 }
 
 .nav-btn {
@@ -550,14 +530,13 @@ button[type="submit"]:active {
   button[type="submit"] {
     width: 100%;
   }
-  .nav-header {
-    flex-direction: column;
-    gap: 12px;
-    padding: 12px;
-  }
-  .nav-menu {
-    width: 100%;
+  .form-nav {
+    position: static;
+    display: flex;
     justify-content: center;
+    gap: 12px;
+    margin-bottom: 24px;
+    width: 100%;
   }
   .nav-btn {
     flex: 1;
@@ -571,13 +550,7 @@ button[type="submit"]:active {
 
 <body>
 
-<header class="nav-header">
-  <div class="nav-logo">🏛️ PRRMS 公關品系統</div>
-  <div class="nav-menu">
-    <a href="Items-status.html" class="nav-btn">📊 狀態看板</a>
-    <a href="admin.html" class="nav-btn">⚙️ 後台管理</a>
-  </div>
-</header>
+<!-- 導覽連結移至表單內部右上角 -->
 
 <h1>公關品資源管理系統</h1>
 <div class="subtitle">Public Relations Resource Management System, PRRMS</div>
@@ -594,6 +567,11 @@ button[type="submit"]:active {
 </div>
 
 <form id="applyForm">
+  <!-- 表單右上角導覽連結 -->
+  <div class="form-nav">
+    <a href="Items-status.html" class="nav-btn">📊 狀態看板</a>
+    <a href="admin.html" class="nav-btn">⚙️ 後台管理</a>
+  </div>
 
 <fieldset>
   <legend>一、申請單位資料（必填）</legend>
