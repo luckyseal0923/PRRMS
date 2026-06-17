@@ -8,8 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
-<!-- 引入 Supabase JS SDK -->
+<!-- 引入 Supabase JS SDK & SheetJS (Excel 匯出) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
 :root {
@@ -395,7 +396,8 @@ input:focus, select:focus {
           <input type="text" id="searchKeyword" placeholder="搜尋單號/申請人" style="width:150px" oninput="filterOrders()">
           <button class="btn btn-primary" onclick="filterOrders()">🔍 篩選</button>
           <button class="btn btn-outline" onclick="resetFilter()">重置</button>
-          <button class="btn btn-success" onclick="downloadCSV()">📥 下載報表</button>
+          <button class="btn btn-outline" onclick="downloadCSV()">📥 下載 CSV</button>
+          <button class="btn btn-success" onclick="exportCostCenterExcel()">📊 匯出成本歸戶表 (Excel)</button>
         </div>
         <div class="table-wrapper">
           <table>
@@ -836,6 +838,121 @@ function downloadCSV() {
   link.href = URL.createObjectURL(blob);
   link.download = '訂單報表_' + new Date().toISOString().slice(0, 10) + '.csv';
   link.click();
+}
+
+// 匯出成本歸戶報表 Excel
+async function exportCostCenterExcel() {
+  if (FILTERED_ORDERS.length === 0) { alert('沒有資料可匯出'); return; }
+  if (typeof XLSX === 'undefined') {
+    alert('正在載入 Excel 匯出模組，請稍候再試...');
+    return;
+  }
+
+  // 1. 取得所有商品資訊以建立完整的品項對照與價格
+  let activeProds = [];
+  try {
+    const { data, error } = await supabaseClient
+      .from('items_list')
+      .select('item_id, item_name, price')
+      .order('item_id');
+    if (error) throw error;
+    activeProds = data || [];
+  } catch (e) {
+    console.error('取得商品列表失敗，將採用訂單中的品項進行匯出:', e);
+    // 降級方案：從訂單中提取所有品項
+    const prodMap = {};
+    FILTERED_ORDERS.forEach(o => {
+      (o.items || []).forEach(i => {
+        if (i.item_id && !prodMap[i.item_id]) {
+          prodMap[i.item_id] = {
+            item_id: i.item_id,
+            item_name: i.item_name,
+            price: Number(i.unit_price) || 0
+          };
+        }
+      });
+    });
+    activeProds = Object.values(prodMap).sort((a, b) => a.item_id.localeCompare(b.item_id));
+  }
+
+  // 2. 將訂單依據月份群組
+  const groups = {};
+  FILTERED_ORDERS.forEach(o => {
+    if (!o.date) return;
+    const d = new Date(o.date);
+    if (isNaN(d.getTime())) return;
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1;
+    const minguoYear = year - 1911;
+    const sheetName = `${minguoYear}.${String(month).padStart(2, '0')}`;
+    if (!groups[sheetName]) {
+      groups[sheetName] = [];
+    }
+    groups[sheetName].push(o);
+  });
+
+  const sheetNames = Object.keys(groups).sort();
+  if (sheetNames.length === 0) {
+    alert('選取的訂單無有效的日期資訊，無法匯出');
+    return;
+  }
+
+  // 3. 建立 XLSX Workbook
+  const wb = XLSX.utils.book_new();
+
+  sheetNames.forEach(sheetName => {
+    const orders = groups[sheetName];
+    const [minguoYear, monthStr] = sheetName.split('.');
+    
+    // 建立二維陣列資料
+    const aoa = [];
+    
+    // 第一列：標題
+    const titleRow = [`${minguoYear}年${parseInt(monthStr)}月公關品成本歸戶`];
+    aoa.push(titleRow);
+    
+    // 第二列：欄位標頭
+    const headers = ['單位代號', '申請單位', '姓名', '分機/工號', '領取事由'];
+    activeProds.forEach(p => {
+      headers.push(p.item_name);
+    });
+    aoa.push(headers);
+    
+    // 第三列：單價列
+    const priceRow = ['', '', '', '', '單價'];
+    activeProds.forEach(p => {
+      priceRow.push(Number(p.price));
+    });
+    aoa.push(priceRow);
+    
+    // 第四列起：各筆訂單資料
+    orders.forEach(o => {
+      const row = [
+        o.cost_center || '',
+        o.department || '',
+        o.user || '',
+        o.phone || o.staff_id || '', // 分機或工號
+        o.reason || ''
+      ];
+      
+      activeProds.forEach(p => {
+        const item = (o.items || []).find(it => it.item_id === p.item_id);
+        row.push(item && item.qty > 0 ? item.qty : ''); // 若數量為 0 或未點，呈現空白
+      });
+      
+      aoa.push(row);
+    });
+    
+    // 轉換為 sheet
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    
+    // 將 sheet 加入 workbook
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  // 4. 存檔匯出
+  const fileName = `公關品成本歸戶報表_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(wb, fileName);
 }
 
 // =========================================================================
