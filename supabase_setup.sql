@@ -148,3 +148,97 @@ INSERT INTO public.items_list (item_id, item_name, inventory, price, image) VALU
 ('ID-002', '保溫隨行杯', 8, 350, 'https://images.unsplash.com/photo-1577937927133-66ef06acdf18?auto=format&fit=crop&q=80&w=300'),
 ('ID-003', '質感原子筆', 120, 35, 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?auto=format&fit=crop&q=80&w=300')
 ON CONFLICT (item_id) DO NOTHING;
+
+-- =========================================================================
+-- 7. 後台管理員帳密與安全驗證系統 (Bcrypt 強度雜湊加密)
+-- =========================================================================
+
+-- 7-1. 先行刪除舊函數（避免回傳型態或參數衝突）
+DROP FUNCTION IF EXISTS public.verify_admin_login(text, text);
+DROP FUNCTION IF EXISTS public.register_admin_account(text, text);
+DROP FUNCTION IF EXISTS public.get_admin_accounts();
+DROP FUNCTION IF EXISTS public.update_admin_status(text, boolean);
+DROP FUNCTION IF EXISTS public.delete_admin_account(text);
+
+-- 7-2. 建立管理員資料表 (is_active 預設為 false 待審核)
+CREATE TABLE IF NOT EXISTS public.admin_accounts (
+    username text PRIMARY KEY,
+    password_hash text NOT NULL,
+    is_active boolean NOT NULL DEFAULT false,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+-- 7-3. 啟用 RLS 保護 (不對公眾開放直接讀取)
+ALTER TABLE public.admin_accounts ENABLE ROW LEVEL SECURITY;
+
+-- 7-4. 建立安全登入比對函數 (verify_admin_login)
+-- 回傳代碼: 0 = 帳密錯誤, 1 = 登入成功(已啟用), 2 = 審核中(未啟用)
+CREATE OR REPLACE FUNCTION public.verify_admin_login(p_username text, p_password text)
+RETURNS integer AS $$
+DECLARE
+    v_hash text;
+    v_active boolean;
+BEGIN
+    SELECT password_hash, is_active INTO v_hash, v_active 
+    FROM public.admin_accounts 
+    WHERE username = p_username;
+    
+    -- 帳密錯誤
+    IF v_hash IS NULL OR v_hash <> crypt(p_password, v_hash) THEN
+        RETURN 0; 
+    END IF;
+    
+    -- 已啟用
+    IF v_active THEN
+        RETURN 1;
+    -- 審核中
+    ELSE
+        RETURN 2;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 7-5. 建立管理員安全註冊函數 (register_admin_account)
+-- 回傳代碼: 0 = 帳號已存在, 1 = 註冊成功待審核
+CREATE OR REPLACE FUNCTION public.register_admin_account(p_username text, p_password text)
+RETURNS integer AS $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM public.admin_accounts WHERE username = p_username) THEN
+        RETURN 0;
+    END IF;
+
+    INSERT INTO public.admin_accounts (username, password_hash, is_active)
+    VALUES (p_username, crypt(p_password, gen_salt('bf')), false);
+    
+    RETURN 1;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 7-6. 建立帳號後台管理函數 (超級管理員專用 API)
+CREATE OR REPLACE FUNCTION public.get_admin_accounts()
+RETURNS TABLE (username text, is_active boolean, created_at timestamp with time zone) AS $$
+BEGIN
+    RETURN QUERY SELECT a.username, a.is_active, a.created_at 
+    FROM public.admin_accounts a 
+    ORDER BY a.created_at DESC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.update_admin_status(p_username text, p_is_active boolean)
+RETURNS void AS $$
+BEGIN
+    UPDATE public.admin_accounts SET is_active = p_is_active WHERE username = p_username;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.delete_admin_account(p_username text)
+RETURNS void AS $$
+BEGIN
+    DELETE FROM public.admin_accounts WHERE username = p_username;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 7-7. 預塞預設已啟用的超級管理員 (帳號: admin / 密碼: admin1234)
+INSERT INTO public.admin_accounts (username, password_hash, is_active)
+VALUES ('admin', crypt('admin1234', gen_salt('bf')), true)
+ON CONFLICT (username) DO UPDATE SET is_active = true;
