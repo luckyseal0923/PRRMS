@@ -1073,7 +1073,7 @@ async function exportCostCenterExcel() {
     // A26:D27 承辦人簽章
     worksheet.mergeCells(`A${sigRow1}:D${sigRow2}`);
     const sig1Cell = worksheet.getCell(`A${sigRow1}`);
-    sig1Cell.value = '承辦人：吳筱涵';
+    sig1Cell.value = '承辦人：';
     sig1Cell.alignment = { horizontal: 'center', vertical: 'middle' };
     sig1Cell.font = { name: '微軟正黑體', size: 14, bold: true };
 
