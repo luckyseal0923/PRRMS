@@ -873,13 +873,14 @@ async function loadInventory() {
 
 function renderInventory(items) {
   const panel = document.querySelector('#tab-inventory .panel');
-  let html = '<table style="width:100%"><thead><tr><th>圖</th><th>品名</th><th>庫存</th><th>操作</th></tr></thead><tbody>';
+  let html = '<table style="width:100%"><thead><tr><th>圖</th><th>商品編號</th><th>品名</th><th>庫存</th><th>操作</th></tr></thead><tbody>';
   items.forEach(item => {
     const imgHtml = item.image 
       ? `<img src="${item.image}" style="height:40px; cursor:pointer; object-fit:cover; border-radius:4px;" onclick="showBig('${item.image}')" title="點擊放大">` 
       : '<span style="color:#ccc; font-size:12px;">無圖片</span>';
     html += `<tr>
       <td style="width:80px; text-align:center;">${imgHtml}</td>
+      <td style="color:#666; font-size:14px;">${item.item_id}</td>
       <td style="font-weight:bold; font-size:15px;">${item.item_name}</td>
       <td style="font-size:16px; color:${item.stock < 10 ? 'red' : 'black'}">${item.stock}</td>
       <td>
