@@ -157,6 +157,7 @@ ON CONFLICT (item_id) DO NOTHING;
 DROP FUNCTION IF EXISTS public.verify_admin_login(text, text);
 DROP FUNCTION IF EXISTS public.register_admin_account(text, text);
 DROP FUNCTION IF EXISTS public.register_admin_account(text, text, text, text);
+DROP FUNCTION IF EXISTS public.register_admin_account(text, text, text, text, text);
 DROP FUNCTION IF EXISTS public.get_admin_accounts();
 DROP FUNCTION IF EXISTS public.update_admin_status(text, boolean);
 DROP FUNCTION IF EXISTS public.delete_admin_account(text);
@@ -164,6 +165,7 @@ DROP FUNCTION IF EXISTS public.delete_admin_account(text);
 -- 💡 【歷史帳號表更新指令】若您的帳號表已存在，請在 SQL Editor 執行以下指令更新欄位：
 -- ALTER TABLE public.admin_accounts ADD COLUMN IF NOT EXISTS full_name text;
 -- ALTER TABLE public.admin_accounts ADD COLUMN IF NOT EXISTS staff_id text;
+-- ALTER TABLE public.admin_accounts ADD COLUMN IF NOT EXISTS email text;
 
 -- 7-2. 建立管理員資料表 (is_active 預設為 false 待審核)
 CREATE TABLE IF NOT EXISTS public.admin_accounts (
@@ -171,6 +173,7 @@ CREATE TABLE IF NOT EXISTS public.admin_accounts (
     password_hash text NOT NULL,
     full_name text,
     staff_id text,
+    email text,
     is_active boolean NOT NULL DEFAULT false,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -207,15 +210,15 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 7-5. 建立管理員安全註冊函數 (register_admin_account)
 -- 回傳代碼: 0 = 帳號已存在, 1 = 註冊成功待審核
-CREATE OR REPLACE FUNCTION public.register_admin_account(p_username text, p_password text, p_full_name text, p_staff_id text)
+CREATE OR REPLACE FUNCTION public.register_admin_account(p_username text, p_password text, p_full_name text, p_staff_id text, p_email text)
 RETURNS integer AS $$
 BEGIN
     IF EXISTS (SELECT 1 FROM public.admin_accounts WHERE username = p_username) THEN
         RETURN 0;
     END IF;
 
-    INSERT INTO public.admin_accounts (username, password_hash, full_name, staff_id, is_active)
-    VALUES (p_username, crypt(p_password, gen_salt('bf')), p_full_name, p_staff_id, false);
+    INSERT INTO public.admin_accounts (username, password_hash, full_name, staff_id, email, is_active)
+    VALUES (p_username, crypt(p_password, gen_salt('bf')), p_full_name, p_staff_id, p_email, false);
     
     RETURN 1;
 END;
@@ -223,9 +226,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 7-6. 建立帳號後台管理函數 (超級管理員專用 API)
 CREATE OR REPLACE FUNCTION public.get_admin_accounts()
-RETURNS TABLE (username text, full_name text, staff_id text, is_active boolean, created_at timestamp with time zone) AS $$
+RETURNS TABLE (username text, full_name text, staff_id text, email text, is_active boolean, created_at timestamp with time zone) AS $$
 BEGIN
-    RETURN QUERY SELECT a.username, a.full_name, a.staff_id, a.is_active, a.created_at 
+    RETURN QUERY SELECT a.username, a.full_name, a.staff_id, a.email, a.is_active, a.created_at 
     FROM public.admin_accounts a 
     ORDER BY a.created_at DESC;
 END;
@@ -246,6 +249,6 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 7-7. 預塞預設已啟用的超級管理員 (帳號: admin / 密碼: admin1234)
-INSERT INTO public.admin_accounts (username, password_hash, full_name, staff_id, is_active)
-VALUES ('admin', crypt('admin1234', gen_salt('bf')), '系統管理員', 'ADMIN-01', true)
-ON CONFLICT (username) DO UPDATE SET is_active = true, full_name = '系統管理員', staff_id = 'ADMIN-01';
+INSERT INTO public.admin_accounts (username, password_hash, full_name, staff_id, email, is_active)
+VALUES ('admin', crypt('admin1234', gen_salt('bf')), '系統管理員', 'ADMIN-01', 'admin@example.com', true)
+ON CONFLICT (username) DO UPDATE SET is_active = true, full_name = '系統管理員', staff_id = 'ADMIN-01', email = 'admin@example.com';

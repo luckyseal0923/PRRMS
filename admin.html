@@ -387,6 +387,9 @@ input:focus, select:focus {
       <label style="font-size: 13px; font-weight: 700; display:block; margin-bottom: 6px; text-align: left; color:#475569;">員工編號</label>
       <input type="text" id="regStaffId" class="setup-input" placeholder="請輸入員編" style="width:100%; padding:12px; margin-bottom:16px; border:1px solid #e2e8f0; border-radius:12px;" />
 
+      <label style="font-size: 13px; font-weight: 700; display:block; margin-bottom: 6px; text-align: left; color:#475569;">電子信箱</label>
+      <input type="email" id="regEmail" class="setup-input" placeholder="請輸入電子信箱" style="width:100%; padding:12px; margin-bottom:16px; border:1px solid #e2e8f0; border-radius:12px;" />
+
       <label style="font-size: 13px; font-weight: 700; display:block; margin-bottom: 6px; text-align: left; color:#475569;">設定密碼</label>
       <input type="password" id="regPass" class="setup-input" placeholder="請輸入密碼" style="width:100%; padding:12px; margin-bottom:16px; border:1px solid #e2e8f0; border-radius:12px;" />
       <button type="button" class="setup-btn" style="width:100%; padding:14px; background:var(--primary-gradient); color:#fff; border:none; border-radius:12px; font-size:16px; font-weight:700; cursor:pointer;" onclick="handleRegister()">送出註冊申請</button>
@@ -484,13 +487,14 @@ input:focus, select:focus {
                 <th>帳號名稱</th>
                 <th>真實姓名</th>
                 <th>員工編號</th>
+                <th>電子信箱</th>
                 <th>申請時間</th>
                 <th>目前狀態</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody id="accountsTable">
-              <tr><td colspan="6" style="text-align:center; padding:30px">載入中...</td></tr>
+              <tr><td colspan="7" style="text-align:center; padding:30px">載入中...</td></tr>
             </tbody>
           </table>
         </div>
@@ -1598,9 +1602,10 @@ async function handleRegister() {
   const pass = document.getElementById('regPass').value.trim();
   const fullName = document.getElementById('regFullName').value.trim();
   const staffId = document.getElementById('regStaffId').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
   
-  if (!user || !pass || !fullName || !staffId) {
-    alert('請填寫所有欄位（帳號、姓名、員編與密碼）');
+  if (!user || !pass || !fullName || !staffId || !email) {
+    alert('請填寫所有欄位（帳號、姓名、員編、電子信箱與密碼）');
     return;
   }
   
@@ -1613,7 +1618,8 @@ async function handleRegister() {
       p_username: user,
       p_password: pass,
       p_full_name: fullName,
-      p_staff_id: staffId
+      p_staff_id: staffId,
+      p_email: email
     });
     
     if (error) throw error;
@@ -1624,6 +1630,7 @@ async function handleRegister() {
       document.getElementById('regPass').value = '';
       document.getElementById('regFullName').value = '';
       document.getElementById('regStaffId').value = '';
+      document.getElementById('regEmail').value = '';
       toggleAuthPanel('signin');
     } else {
       alert('❌ 註冊失敗：此帳號已存在，請使用其他名稱！');
@@ -1659,14 +1666,14 @@ async function loadAccounts() {
   } catch (e) {
     console.error(e);
     document.getElementById('accountsError').classList.remove('hidden');
-    tb.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px">載入帳號失敗，請檢查權限</td></tr>';
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px">載入帳號失敗，請檢查權限</td></tr>';
   }
 }
 
 function renderAccounts(list) {
   const tb = document.getElementById('accountsTable');
   if (list.length === 0) {
-    tb.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px">無資料</td></tr>';
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px">無資料</td></tr>';
     return;
   }
   
@@ -1691,6 +1698,7 @@ function renderAccounts(list) {
       <td style="font-weight:bold;">${a.username}</td>
       <td>${a.full_name || '-'}</td>
       <td>${a.staff_id || '-'}</td>
+      <td>${a.email || '-'}</td>
       <td>${formatDateTime(a.created_at)}</td>
       <td>
         <span class="status-pill ${isActive ? 'status-ready' : 'status-submitted'}">
