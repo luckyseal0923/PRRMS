@@ -571,7 +571,8 @@ button.status-btn:hover {
 
 <div class="submit-area">
   <button type="submit">送出申請</button>
-  <button type="button" class="status-btn" onclick="goToStatusPage()">狀態看板</button>
+  <button type="button" class="status-btn" onclick="goToStatusPage()">📊 狀態看板</button>
+  <button type="button" class="status-btn" onclick="goToAdminPage()">⚙️ 後台管理</button>
 </div>
 
 </form>
@@ -739,6 +740,11 @@ function updateTotalAmount() {
 // 前往狀態看板
 function goToStatusPage() {
     window.location.href = 'Items-status.html';
+}
+
+// 前往後台管理系統
+function goToAdminPage() {
+    window.location.href = 'admin.html';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
