@@ -683,7 +683,7 @@ function renderCards() {
                 <h3 class="card-title">${i.item_name}</h3>
                 <div class="card-price-row">
                     <span class="price-label">單價</span>
-                    <span class="price-value">NT$ ${i.price}</span>
+                    <span class="price-value">NT$ ${Number(i.price).toFixed(2)}</span>
                 </div>
                 <div class="card-stock-row ${isLow ? 'low' : ''}">
                     <span>庫存量：${i.inventory}</span>
@@ -731,9 +731,9 @@ function updateTotalAmount() {
     inputs.forEach(inp => {
         const it = items.find(item => item.item_id == inp.dataset.id);
         const q = parseInt(inp.value) || 0;
-        if (it) total += q * it.price;
+        if (it) total += q * Number(it.price);
     });
-    document.getElementById('totalAmount').textContent = total.toLocaleString();
+    document.getElementById('totalAmount').textContent = total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // 前往狀態看板

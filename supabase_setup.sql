@@ -1,6 +1,11 @@
 -- =========================================================================
 -- 公關品資源管理系統 (PRRMS) - Supabase 資料庫初始化 SQL 腳本
 -- 請將此腳本複製並貼上到 Supabase 專案的 SQL Editor 中執行。
+--
+-- 💡 【歷史資料庫更新指令】若您的資料表已存在，請在 SQL Editor 執行以下指令更新欄位型態：
+-- ALTER TABLE public.items_list ALTER COLUMN price TYPE numeric(10,2);
+-- ALTER TABLE public.application_items ALTER COLUMN unit_price TYPE numeric(10,2);
+-- ALTER TABLE public.application_items ALTER COLUMN subtotal TYPE numeric(10,2);
 -- =========================================================================
 
 -- 1. 建立商品主檔資料表 (items_list)
@@ -8,7 +13,7 @@ CREATE TABLE IF NOT EXISTS public.items_list (
     item_id text PRIMARY KEY,
     item_name text NOT NULL,
     inventory integer NOT NULL DEFAULT 0,
-    price integer NOT NULL DEFAULT 0,
+    price numeric(10,2) NOT NULL DEFAULT 0.00,
     image text
 );
 
@@ -36,9 +41,9 @@ CREATE TABLE IF NOT EXISTS public.application_items (
     task_id text REFERENCES public.applications(task_id) ON DELETE CASCADE NOT NULL,
     item_id text NOT NULL,
     item_name text NOT NULL,
-    unit_price integer NOT NULL DEFAULT 0,
+    unit_price numeric(10,2) NOT NULL DEFAULT 0.00,
     quantity integer NOT NULL DEFAULT 0,
-    subtotal integer NOT NULL DEFAULT 0
+    subtotal numeric(10,2) NOT NULL DEFAULT 0.00
 );
 
 -- 4. 建立庫存扣減 RPC 函數 (處理後台手動修改等防呆)
@@ -61,7 +66,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 4-2. 建立原子性訂單提交 RPC 函數 (前台專用，主檔、明細與扣減庫存一鍵完成，確保交易完整性)
+-- 4-2. 建立原子性訂單提交 RPC 函數 (前台專用，主檔、明細與庫存扣減一鍵完成，確保交易完整性)
 CREATE OR REPLACE FUNCTION public.create_promo_application(
     p_task_id text,
     p_applicant_name text,
@@ -74,7 +79,7 @@ CREATE OR REPLACE FUNCTION public.create_promo_application(
     p_total_amount numeric,
     p_item_ids text[],
     p_item_names text[],
-    p_prices integer[],
+    p_prices numeric[],
     p_quantities integer[]
 )
 RETURNS void AS $$

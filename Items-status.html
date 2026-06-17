@@ -633,7 +633,7 @@ function renderActive(list){
       <div class="title">${o.applicant_name}（${o.staff_id}）｜${o.department}</div>
       <div class="sub">訂單編號：${o.task_id}</div>
       <div class="sub">申請日期：${fmtDateTime(o.created_at)}</div>
-      <div class="money">總金額：NT$ ${Number(o.total_amount).toLocaleString()}</div>
+      <div class="money">總金額：NT$ ${Number(o.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
 
       <div class="timeline">
         <div class="step done">申請提出</div>
@@ -682,7 +682,7 @@ function renderArchive(list){
       <td>${o.applicant_name}（${o.staff_id}）</td>
       <td>${o.department}</td>
       <td>${(o.application_items || []).map(i => `${i.item_name} × ${i.quantity}`).join('<br>')}</td>
-      <td style="font-weight: 800; color: var(--primary-color);">NT$ ${Number(o.total_amount).toLocaleString()}</td>
+      <td style="font-weight: 800; color: var(--primary-color);">NT$ ${Number(o.total_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
       <td>${fmtDateTime(o.updated_at || o.created_at)}</td>
     </tr>`;
   });
