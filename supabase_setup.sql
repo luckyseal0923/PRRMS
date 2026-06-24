@@ -252,3 +252,33 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 INSERT INTO public.admin_accounts (username, password_hash, full_name, staff_id, email, is_active)
 VALUES ('admin', crypt('admin1234', gen_salt('bf')), '系統管理員', 'ADMIN-01', 'admin@example.com', true)
 ON CONFLICT (username) DO UPDATE SET is_active = true, full_name = '系統管理員', staff_id = 'ADMIN-01', email = 'admin@example.com';
+
+-- =========================================================================
+-- 8. Supabase Storage 儲存桶與安全原則設定 (商品圖片上傳用)
+-- =========================================================================
+
+-- 8-1. 建立名為 product-images 的公開 (Public) 儲存桶
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('product-images', 'product-images', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- 8-2. 建立儲存桶檔案的安全存取原則 (RLS Policies)
+-- 允許所有人（包含匿名與一般訪客）讀取與下載儲存桶中的圖片
+DROP POLICY IF EXISTS "Allow public select" ON storage.objects;
+CREATE POLICY "Allow public select" ON storage.objects
+FOR SELECT USING (bucket_id = 'product-images');
+
+-- 允許任何人（包含匿名與一般訪客）上傳檔案至儲存桶
+DROP POLICY IF EXISTS "Allow public insert" ON storage.objects;
+CREATE POLICY "Allow public insert" ON storage.objects
+FOR INSERT WITH CHECK (bucket_id = 'product-images');
+
+-- 允許任何人（包含匿名與一般訪客）更新與覆寫儲存桶內的檔案
+DROP POLICY IF EXISTS "Allow public update" ON storage.objects;
+CREATE POLICY "Allow public update" ON storage.objects
+FOR UPDATE USING (bucket_id = 'product-images');
+
+-- 允許任何人（包含匿名與一般訪客）刪除儲存桶內的檔案 (可選)
+DROP POLICY IF EXISTS "Allow public delete" ON storage.objects;
+CREATE POLICY "Allow public delete" ON storage.objects
+FOR DELETE USING (bucket_id = 'product-images');
