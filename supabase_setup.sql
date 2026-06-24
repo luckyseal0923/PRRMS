@@ -120,6 +120,23 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- 4-3. 建立刪除申請明細時自動回補庫存的觸發器 (Trigger)
+CREATE OR REPLACE FUNCTION public.restore_inventory_on_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE public.items_list
+    SET inventory = inventory + OLD.quantity
+    WHERE item_id = OLD.item_id;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_restore_inventory_on_delete ON public.application_items;
+CREATE TRIGGER tr_restore_inventory_on_delete
+AFTER DELETE ON public.application_items
+FOR EACH ROW
+EXECUTE FUNCTION public.restore_inventory_on_delete();
+
 
 -- 5. 啟用資料表資料列層級安全性 (RLS) - 可選，建議啟用
 ALTER TABLE public.items_list ENABLE ROW LEVEL SECURITY;
