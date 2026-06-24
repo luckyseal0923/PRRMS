@@ -633,6 +633,7 @@ button[type="submit"]:active {
 // =========================================================================
 const DEFAULT_SUPABASE_URL = 'https://awqrpzgkndysizvwqfmy.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_6Km_NaLMwawXQD9lMH7aMw_AsQmjGU0';
+const DEFAULT_N8N_WEBHOOK = 'https://n8nwfh.zeabur.app/webhook/case_bluid';
 
 let supabaseUrl = localStorage.getItem('supabaseUrl') || DEFAULT_SUPABASE_URL;
 let supabaseKey = localStorage.getItem('supabaseKey') || DEFAULT_SUPABASE_ANON_KEY;
@@ -867,6 +868,32 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (error) throw error;
+
+            // 觸發 n8n Webhook 通知管理者
+            const orderedItems = itemIds.map((id, idx) => ({
+                item_id: id,
+                item_name: itemNames[idx],
+                price: prices[idx],
+                quantity: quantities[idx],
+                subtotal: prices[idx] * quantities[idx]
+            }));
+
+            fetch(DEFAULT_N8N_WEBHOOK, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    task_id: task_id,
+                    applicant_name: applyForm.applicant_name.value,
+                    staff_id: applyForm.staff_id.value,
+                    phone: applyForm.phone.value,
+                    email: applyForm.applicant_email.value,
+                    department: applyForm.department.value,
+                    cost_center: applyForm.costCenter.value,
+                    reason: applyForm.reason.value,
+                    total_amount: totalAmount,
+                    items: orderedItems
+                })
+            }).catch(err => console.error('n8n Webhook 呼叫失敗:', err));
 
             alert('🎉 申請成功！單號為：' + task_id);
             applyForm.reset();
