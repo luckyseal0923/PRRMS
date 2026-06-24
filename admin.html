@@ -407,6 +407,7 @@ input:focus, select:focus {
     <div class="nav-item" id="nav-inventory" onclick="switchTab('inventory')">⚖️ <span class="nav-text">庫存盤點</span></div>
     <div class="nav-item" id="nav-listing" onclick="switchTab('listing')">🚀 <span class="nav-text">商品管理</span></div>
     <div class="nav-item" id="nav-accounts" onclick="switchTab('accounts')">👥 <span class="nav-text">帳號管理</span></div>
+    <div class="nav-item" id="nav-logs" onclick="switchTab('logs')">📜 <span class="nav-text">庫存日誌</span></div>
     
     <!-- Sidebar 底部快速連結 -->
     <div class="quick-link-section" style="margin-top:auto; border-top:1px solid #e2e8f0; padding-top:20px">
@@ -497,6 +498,43 @@ input:focus, select:focus {
               </tr>
             </thead>
             <tbody id="accountsTable">
+              <tr><td colspan="7" style="text-align:center; padding:30px">載入中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <!-- 庫存日誌 -->
+    <div id="tab-logs" class="hidden">
+      <h1>庫存異動日誌</h1>
+      <div id="logsError" class="hidden" style="padding:14px; background:#FEE2E2; color:#991B1B; border-radius:10px; margin-bottom:16px">⚠️ 載入失敗，請確認資料庫已建立庫存日誌表與函數</div>
+      <div class="panel">
+        <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; align-items:center;">
+          <span style="color:var(--text-muted); font-size:14px;">篩選商品：</span>
+          <select id="logProductFilter" onchange="filterLogs()" style="min-width:150px">
+            <option value="ALL">全部商品</option>
+          </select>
+          <span style="color:var(--text-muted); font-size:14px; margin-left:10px;">異動類型：</span>
+          <select id="logTypeFilter" onchange="filterLogs()" style="min-width:150px">
+            <option value="ALL">全部類型</option>
+            <option value="ORDER_SUBMIT">📋 前台訂單扣除</option>
+            <option value="ORDER_DELETE">🗑️ 訂單刪除回補</option>
+            <option value="MANUAL_ADJUST">🔧 管理員手動盤點調整</option>
+          </select>
+        </div>
+        <div class="table-wrapper">
+          <table style="width:100%">
+            <thead>
+              <tr>
+                <th>變動時間</th>
+                <th>商品編號</th>
+                <th>品名</th>
+                <th>異動數量</th>
+                <th>異動前 ➔ 異動後</th>
+                <th>異動原因 / 關聯編號</th>
+                <th>操作人</th>
+              </tr>
+            </thead>
+            <tbody id="logsTable">
               <tr><td colspan="7" style="text-align:center; padding:30px">載入中...</td></tr>
             </tbody>
           </table>
@@ -603,7 +641,7 @@ function formatDateTime(d) {
 }
 
 function switchTab(tab) {
-  ['orders', 'inventory', 'listing', 'accounts'].forEach(t => {
+  ['orders', 'inventory', 'listing', 'accounts', 'logs'].forEach(t => {
     document.getElementById('tab-' + t).classList.add('hidden');
     document.getElementById('nav-' + t).classList.remove('active');
   });
@@ -615,6 +653,7 @@ function switchTab(tab) {
     if (tab === 'inventory') loadInventory();
     if (tab === 'listing') loadListing();
     if (tab === 'accounts') loadAccounts();
+    if (tab === 'logs') loadLogs();
   }
 }
 
@@ -824,10 +863,10 @@ async function updateStatus(tid) {
       const ok = confirm("⚠️ 確定要刪除此申請嗎？\n\n刪除後資料將無法回復");
       if (!ok) return;
 
-      const { error } = await supabaseClient
-        .from('applications')
-        .delete()
-        .eq('task_id', tid);
+      const { error } = await supabaseClient.rpc('delete_application_by_admin', {
+        p_task_id: tid,
+        p_operator: LOGGED_IN_USER || 'system'
+      });
 
       if (error) throw error;
       alert("🗑 訂單已刪除");
@@ -1303,10 +1342,11 @@ async function updStock(id) {
   if (!supabaseClient) return;
   const v = document.getElementById('stock-' + id).value;
   try {
-    const { error } = await supabaseClient
-      .from('items_list')
-      .update({ inventory: parseInt(v) || 0 })
-      .eq('item_id', id);
+    const { error } = await supabaseClient.rpc('update_inventory_manual', {
+      p_item_id: id,
+      p_new_qty: parseInt(v) || 0,
+      p_operator: LOGGED_IN_USER || 'system'
+    });
 
     if (error) throw error;
     alert('已更新庫存');
@@ -1787,6 +1827,109 @@ async function deleteAccount(user) {
   } catch (e) {
     alert('刪除帳號失敗：' + e.message);
   }
+}
+
+// =========================================================================
+// 6. 庫存異動日誌控制邏輯
+// =========================================================================
+let ALL_LOGS = [];
+
+async function loadLogs() {
+  const tb = document.getElementById('logsTable');
+  const errDiv = document.getElementById('logsError');
+  const productFilter = document.getElementById('logProductFilter');
+  
+  if (!supabaseClient) return;
+  
+  errDiv.classList.add('hidden');
+  tb.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px">載入中...</td></tr>';
+  
+  try {
+    // 1. 取得日誌資料
+    const { data: logsData, error: logsError } = await supabaseClient.rpc('get_inventory_logs');
+    if (logsError) throw logsError;
+    ALL_LOGS = logsData || [];
+    
+    // 2. 取得所有商品 (不分 is_active，因為歷史日誌中可能有已下架的商品) 供篩選
+    const { data: itemsData, error: itemsError } = await supabaseClient
+      .from('items_list')
+      .select('item_id, item_name')
+      .order('item_id');
+      
+    if (itemsError) throw itemsError;
+    
+    // 3. 填入商品篩選選單
+    const selectedProd = productFilter.value; // 保留選取狀態
+    productFilter.innerHTML = '<option value="ALL">全部商品</option>';
+    (itemsData || []).forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.item_id;
+      opt.textContent = `${item.item_id} - ${item.item_name}`;
+      productFilter.appendChild(opt);
+    });
+    // 恢復選取狀態
+    if (selectedProd && [...productFilter.options].some(o => o.value === selectedProd)) {
+      productFilter.value = selectedProd;
+    }
+    
+    // 4. 進行篩選與顯示
+    filterLogs();
+  } catch (e) {
+    console.error(e);
+    errDiv.classList.remove('hidden');
+    tb.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#991B1B">載入日誌失敗：${e.message}</td></tr>`;
+  }
+}
+
+function filterLogs() {
+  const prodVal = document.getElementById('logProductFilter').value;
+  const typeVal = document.getElementById('logTypeFilter').value;
+  
+  let filtered = ALL_LOGS;
+  if (prodVal !== 'ALL') {
+    filtered = filtered.filter(l => l.item_id === prodVal);
+  }
+  if (typeVal !== 'ALL') {
+    filtered = filtered.filter(l => l.change_type === typeVal);
+  }
+  
+  renderLogs(filtered);
+}
+
+function renderLogs(list) {
+  const tb = document.getElementById('logsTable');
+  if (list.length === 0) {
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#666;">查無符合條件的異動紀錄</td></tr>';
+    return;
+  }
+  
+  tb.innerHTML = list.map(l => {
+    // 異動類型中文化
+    let typeName = l.change_type;
+    if (l.change_type === 'ORDER_SUBMIT') typeName = '📋 前台訂單扣除';
+    else if (l.change_type === 'ORDER_DELETE') typeName = '🗑️ 訂單刪除回補';
+    else if (l.change_type === 'MANUAL_ADJUST') typeName = '🔧 管理員手動調整';
+    
+    // 數量正負號與顏色
+    let qtyHtml = '';
+    if (l.change_qty > 0) {
+      qtyHtml = `<span style="color:#16A34A; font-weight:bold;">+${l.change_qty}</span>`;
+    } else if (l.change_qty < 0) {
+      qtyHtml = `<span style="color:#DC2626; font-weight:bold;">${l.change_qty}</span>`;
+    } else {
+      qtyHtml = `<span style="color:#666;">0</span>`;
+    }
+    
+    return `<tr>
+      <td>${formatDateTime(l.created_at)}</td>
+      <td style="font-weight:bold; font-family:monospace;">${l.item_id}</td>
+      <td>${l.item_name}</td>
+      <td>${qtyHtml}</td>
+      <td style="font-family:monospace;">${l.old_qty} ➔ ${l.new_qty}</td>
+      <td>${typeName}${l.reference_id ? ` (${l.reference_id})` : ''}</td>
+      <td style="font-weight:bold;">${l.operator}</td>
+    </tr>`;
+  }).join('');
 }
 
 // 頁面載入自動初始化與登入狀態驗證
