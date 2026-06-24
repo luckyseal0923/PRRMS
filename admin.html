@@ -522,6 +522,7 @@ input:focus, select:focus {
 const DEFAULT_SUPABASE_URL = 'https://awqrpzgkndysizvwqfmy.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_6Km_NaLMwawXQD9lMH7aMw_AsQmjGU0';
 const DEFAULT_MAIL_WEBHOOK = 'https://chihwei-n8n.zeabur.app/webhook/update-order';
+const DEFAULT_ERROR_WEBHOOK = 'https://n8nwfh.zeabur.app/webhook/order_error';
 
 let supabaseUrl = localStorage.getItem('supabaseUrl') || DEFAULT_SUPABASE_URL;
 let supabaseKey = localStorage.getItem('supabaseKey') || DEFAULT_SUPABASE_ANON_KEY;
@@ -869,13 +870,16 @@ async function updateStatus(tid) {
           comment: n
         };
 
+        // 依狀態發送到不同的 Webhook URL
+        const targetWebhook = (s === 'EXCEPTION') ? DEFAULT_ERROR_WEBHOOK : mailWebhookUrl;
+
         try {
-          await fetch(mailWebhookUrl, {
+          await fetch(targetWebhook, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
-          console.log('📬 已成功發送 n8n 信件通知 Webhook');
+          console.log(`📬 已成功發送 n8n 信件通知 Webhook (狀態: ${s})`);
         } catch (webhookErr) {
           console.error('發送 n8n Webhook 信件通知失敗:', webhookErr);
         }
