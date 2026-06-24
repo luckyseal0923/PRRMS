@@ -523,6 +523,7 @@ const DEFAULT_SUPABASE_URL = 'https://awqrpzgkndysizvwqfmy.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_6Km_NaLMwawXQD9lMH7aMw_AsQmjGU0';
 const DEFAULT_MAIL_WEBHOOK = 'https://chihwei-n8n.zeabur.app/webhook/update-order';
 const DEFAULT_ERROR_WEBHOOK = 'https://n8nwfh.zeabur.app/webhook/order_error';
+const DEFAULT_FINISH_WEBHOOK = 'https://n8nwfh.zeabur.app/webhook/order_finish';
 
 let supabaseUrl = localStorage.getItem('supabaseUrl') || DEFAULT_SUPABASE_URL;
 let supabaseKey = localStorage.getItem('supabaseKey') || DEFAULT_SUPABASE_ANON_KEY;
@@ -871,7 +872,12 @@ async function updateStatus(tid) {
         };
 
         // 依狀態發送到不同的 Webhook URL
-        const targetWebhook = (s === 'EXCEPTION') ? DEFAULT_ERROR_WEBHOOK : mailWebhookUrl;
+        let targetWebhook = mailWebhookUrl;
+        if (s === 'EXCEPTION') {
+          targetWebhook = DEFAULT_ERROR_WEBHOOK;
+        } else if (s === 'READY') {
+          targetWebhook = DEFAULT_FINISH_WEBHOOK;
+        }
 
         try {
           await fetch(targetWebhook, {
