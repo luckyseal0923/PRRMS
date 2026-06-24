@@ -9,12 +9,15 @@
 -- =========================================================================
 
 -- 1. 建立商品主檔資料表 (items_list)
+-- 💡 【歷史商品表更新指令】若您的商品表已存在，請在 SQL Editor 執行以下指令更新欄位：
+-- ALTER TABLE public.items_list ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
 CREATE TABLE IF NOT EXISTS public.items_list (
     item_id text PRIMARY KEY,
     item_name text NOT NULL,
     inventory integer NOT NULL DEFAULT 0,
     price numeric(10,2) NOT NULL DEFAULT 0.00,
-    image text
+    image text,
+    is_active boolean NOT NULL DEFAULT true
 );
 
 -- 2. 建立申請主檔資料表 (applications)

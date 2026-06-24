@@ -1238,6 +1238,7 @@ async function loadInventory() {
     const { data, error } = await supabaseClient
       .from('items_list')
       .select('*')
+      .eq('is_active', true)
       .order('item_id');
 
     if (error) throw error;
@@ -1330,7 +1331,8 @@ async function loadListing() {
       item_name: i.item_name,
       stock: i.inventory,
       unit_price: i.price,
-      image: i.image
+      image: i.image,
+      is_active: i.is_active !== false
     }));
 
     let tableHtml = `
@@ -1346,11 +1348,12 @@ async function loadListing() {
       tableHtml += '<tr><td colspan="6" style="text-align:center; padding:30px">尚無商品資料</td></tr>';
     } else {
       ALL_PRODUCTS.forEach(i => {
+        const activeBadge = i.is_active ? '' : ' <span style="background:#EF4444; color:#fff; font-size:11px; padding:2px 6px; border-radius:4px; margin-left:5px;">已下架</span>';
         tableHtml += `
-          <tr>
+          <tr style="${i.is_active ? '' : 'opacity:0.65; background:#f8fafc;'}">
             <td>${i.image ? `<img src="${i.image}" style="height:50px; width:50px; object-fit:cover; border-radius:4px;">` : '-'}</td>
             <td style="color:#666;">${i.item_id}</td>
-            <td style="font-weight:bold;">${i.item_name}</td>
+            <td style="font-weight:bold;">${i.item_name}${activeBadge}</td>
             <td>$${Number(i.unit_price).toFixed(2)}</td>
             <td>${i.stock}</td>
             <td><button class="btn btn-primary" onclick="editProd('${i.item_id}')">編輯</button></td>
@@ -1371,6 +1374,21 @@ async function loadListing() {
   }
 }
 
+function getNextProductId() {
+  let maxNum = 0;
+  ALL_PRODUCTS.forEach(p => {
+    const match = p.item_id.match(/^ID-(\d+)$/i);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (num > maxNum) {
+        maxNum = num;
+      }
+    }
+  });
+  const nextNum = maxNum + 1;
+  return 'ID-' + String(nextNum).padStart(3, '0');
+}
+
 function editProd(id) {
   const i = id ? ALL_PRODUCTS.find(x => x.item_id == id) : null;
   const isNew = !i;
@@ -1383,7 +1401,8 @@ function editProd(id) {
     <div class="modal-body">
       <h3 style="margin-top:0;">${isNew ? '➕ 新增商品上架' : '✏️ 編輯商品'}</h3>
       
-      <input type="hidden" id="pid" value="${i?.item_id || 'ID-' + String(Math.floor(Date.now()/1000)).slice(-3)}">
+      <label style="display:block; margin:10px 0 5px; font-weight:bold;">商品編號</label>
+      <input type="text" id="pid" style="width:100%; padding:8px; background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold;" value="${i?.item_id || getNextProductId()}" readonly>
       
       <label style="display:block; margin:10px 0 5px; font-weight:bold;">品名</label>
       <input type="text" id="pname" style="width:100%; padding:8px;" value="${i?.item_name || ''}">
@@ -1411,7 +1430,7 @@ function editProd(id) {
 
       <div style="margin-top:20px; text-align:right; border-top:1px solid #eee; padding-top:15px; display:flex; justify-content:space-between;">
         <div>
-          ${!isNew ? `<button class="btn btn-danger" onclick="delProd('${id}')">🗑️ 下架移除</button>` : ''}
+          ${!isNew ? (i.is_active ? `<button class="btn btn-danger" onclick="delProd('${id}', false)">🗑️ 下架隱藏</button>` : `<button class="btn btn-success" onclick="delProd('${id}', true)">✔️ 重新上架</button>`) : ''}
         </div>
         <div style="display:flex; gap:10px;">
           <button class="btn btn-outline" onclick="this.closest('.modal').remove()">取消</button> 
@@ -1481,6 +1500,10 @@ async function saveProd() {
       window.selectedImageFile = null;
     }
 
+    // 取得當前的 is_active 狀態，若是新商品預設為 true
+    const existingProduct = ALL_PRODUCTS.find(x => x.item_id === id);
+    const isActiveVal = existingProduct ? existingProduct.is_active : true;
+
     // 2. 使用 upsert 寫入商品資料庫 items_list
     const { error: dbError } = await supabaseClient
       .from('items_list')
@@ -1489,7 +1512,8 @@ async function saveProd() {
         item_name: name,
         price: parseFloat(price) || 0.00,
         inventory: parseInt(stock) || 0,
-        image: imageUrl
+        image: imageUrl,
+        is_active: isActiveVal
       });
 
     if (dbError) throw dbError;
@@ -1505,22 +1529,23 @@ async function saveProd() {
   }
 }
 
-async function delProd(id) {
+async function delProd(id, activeStatus) {
   if (!supabaseClient) return;
-  if (!confirm('⚠️ 確定要將此商品下架移除嗎？此動作無法復原。')) return;
+  const actionText = activeStatus ? '重新上架' : '下架隱藏';
+  if (!confirm(`確定要將此商品 ${actionText} 嗎？`)) return;
   
   try {
     const { error } = await supabaseClient
       .from('items_list')
-      .delete()
+      .update({ is_active: activeStatus })
       .eq('item_id', id);
 
     if (error) throw error;
-    alert('🗑️ 商品已下架');
+    alert(`🗑️ 商品已${actionText}`);
     document.getElementById('prodModal').remove();
     loadListing();
   } catch (e) {
-    alert('移除失敗：' + e.message);
+    alert('操作失敗：' + e.message);
   }
 }
 

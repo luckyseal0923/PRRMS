@@ -685,6 +685,7 @@ async function fetchItems() {
         const { data, error } = await supabaseClient
             .from('items_list')
             .select('*')
+            .eq('is_active', true)
             .order('item_id');
             
         if (error) throw error;
