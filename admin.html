@@ -183,6 +183,7 @@ tbody tr:hover td {
   align-items: center;
   gap: 6px;
   transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-sizing: border-box;
 }
 
 .btn-primary { background: var(--primary-gradient); color: #fff; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
@@ -520,6 +521,8 @@ input:focus, select:focus {
             <option value="ORDER_SUBMIT">📋 前台訂單扣除</option>
             <option value="ORDER_DELETE">🗑️ 訂單刪除回補</option>
             <option value="MANUAL_ADJUST">🔧 管理員手動盤點調整</option>
+            <option value="PRODUCT_LIST">✔️ 商品上架</option>
+            <option value="PRODUCT_DELIST">🗑️ 商品下架</option>
           </select>
         </div>
         <div class="table-wrapper">
@@ -1586,10 +1589,11 @@ async function delProd(id, activeStatus) {
   if (!confirm(`確定要將此商品 ${actionText} 嗎？`)) return;
   
   try {
-    const { error } = await supabaseClient
-      .from('items_list')
-      .update({ is_active: activeStatus })
-      .eq('item_id', id);
+    const { error } = await supabaseClient.rpc('update_product_active_status', {
+      p_item_id: id,
+      p_is_active: activeStatus,
+      p_operator: LOGGED_IN_USER || 'system'
+    });
 
     if (error) throw error;
     alert(`🗑️ 商品已${actionText}`);
@@ -1910,6 +1914,8 @@ function renderLogs(list) {
     if (l.change_type === 'ORDER_SUBMIT') typeName = '📋 前台訂單扣除';
     else if (l.change_type === 'ORDER_DELETE') typeName = '🗑️ 訂單刪除回補';
     else if (l.change_type === 'MANUAL_ADJUST') typeName = '🔧 管理員手動調整';
+    else if (l.change_type === 'PRODUCT_LIST') typeName = '✔️ 商品上架';
+    else if (l.change_type === 'PRODUCT_DELIST') typeName = '🗑️ 商品下架';
     
     // 數量正負號與顏色
     let qtyHtml = '';
